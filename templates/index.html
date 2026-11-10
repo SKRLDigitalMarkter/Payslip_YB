@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Payroll Sheet — YAYATH BUILDTECH{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+  <div class="hero-badge">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+    Corporate Payroll Automation
+  </div>
+  <h1 class="hero-title">Generate Official Salary Slips <span>in Seconds</span></h1>
+  <p class="hero-description">
+    Upload your attendance &amp; payroll spreadsheet to auto-map columns, preview employee payslips in real-time, and download individual or batch PDF documents.
+  </p>
+</div>
+
+<form id="uploadForm" action="{{ url_for('index') }}" method="POST" enctype="multipart/form-data">
+  <div class="upload-grid">
+    <!-- Left Column: Dropzone & File Select -->
+    <div class="glass-card dropzone-container">
+      <div class="dropzone" id="payrollDropzone">
+        <input type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" required>
+        <div class="dropzone-icon-box">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <h3 class="dropzone-title">Drop your Payroll File here</h3>
+        <p class="dropzone-hint">Drag &amp; drop your Excel or CSV file, or click to browse from device</p>
+        <div class="dropzone-formats">
+          <span class="format-tag">.XLSX</span>
+          <span class="format-tag">.XLS</span>
+          <span class="format-tag">.CSV</span>
+        </div>
+      </div>
+
+      <!-- Pill shown after file is selected -->
+      <div id="selectedFilePreview" class="selected-file-preview">
+        <div class="file-info">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <div>
+            <div id="selectedFileName" class="file-name">filename.xlsx</div>
+            <div id="selectedFileSize" class="file-size">0 KB</div>
+          </div>
+        </div>
+        <button type="button" id="removeFileBtn" class="file-remove-btn" title="Remove file">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Sample Download Prompt -->
+      <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+          <span style="font-size: 0.825rem; font-weight: 600; color: var(--text-primary); display: block;">Don't have a template ready?</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Download a pre-filled sample spreadsheet with employee data.</span>
+        </div>
+        <a href="{{ url_for('download_sample') }}" class="btn btn-secondary btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download Sample .XLSX
+        </a>
+      </div>
+    </div>
+
+    <!-- Right Column: Company & Period Configuration -->
+    <div class="glass-card">
+      <h3 class="form-section-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+        </svg>
+        Payslip Header Details
+      </h3>
+
+      <div class="form-group">
+        <label for="monthInput" class="form-label">Payslip Month &amp; Year</label>
+        <input type="text" id="monthInput" name="month" class="form-control" value="{{ current_month }}" placeholder="e.g. October, 2026" required>
+      </div>
+
+      <!-- Company Picker Dropdown -->
+      <div class="form-group">
+        <label for="companySelect" class="form-label">Select Company</label>
+        <select id="companySelect" name="company_key" class="form-control" onchange="onCompanyChange(this)">
+          {% for key, co in companies.items() %}
+          <option value="{{ key }}"
+                  data-name="{{ co.name }}"
+                  data-address="{{ co.address }}"
+                  {% if key == default_company_key %}selected{% endif %}>
+            {{ co.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Auto-filled from dropdown, still editable -->
+      <div class="form-group">
+        <label for="companyInput" class="form-label">Company Name</label>
+        <input type="text" id="companyInput" name="company" class="form-control" value="{{ default_company }}" placeholder="e.g. YAYATH BUILDTECH" required>
+      </div>
+
+      <div class="form-group">
+        <label for="addressInput" class="form-label">Registered Office Address</label>
+        <textarea id="addressInput" name="address" class="form-control" rows="3" placeholder="Enter company address...">{{ default_address }}</textarea>
+      </div>
+
+      <button type="submit" id="uploadSubmitBtn" class="btn btn-primary btn-block" style="margin-top: 1.5rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        Process Sheet &amp; Map Columns
+      </button>
+    </div>
+  </div>
+</form>
+
+<!-- Features Row -->
+<div class="features-grid">
+  <div class="feature-card">
+    <div class="feature-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"></polyline>
+        <polyline points="8 6 2 12 8 18"></polyline>
+      </svg>
+    </div>
+    <h4 class="feature-title">Smart Column Mapping</h4>
+    <p class="feature-desc">Automatic fuzzy alias detection pairs any existing spreadsheet layout with official payslip fields effortlessly.</p>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+    </div>
+    <h4 class="feature-title">Live In-Browser PDF Preview</h4>
+    <p class="feature-desc">Instantly inspect any employee's payslip layout and calculations in real time without downloading or unzipping.</p>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+      </svg>
+    </div>
+    <h4 class="feature-title">Bulk ZIP Generation</h4>
+    <p class="feature-desc">Export cleanly named PDFs for hundreds of employees simultaneously in one organized ZIP package.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onCompanyChange(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const nameInput = document.getElementById('companyInput');
+  const addrInput = document.getElementById('addressInput');
+  if (nameInput) nameInput.value = opt.dataset.name || '';
+  if (addrInput) addrInput.value = opt.dataset.address || '';
+}
+// Sync on first load
+document.addEventListener('DOMContentLoaded', function () {
+  const sel = document.getElementById('companySelect');
+  if (sel) onCompanyChange(sel);
+});
+</script>
+{% endblock %}

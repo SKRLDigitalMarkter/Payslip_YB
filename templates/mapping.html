@@ -1,0 +1,905 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Mapping &amp; Generate Payslips — YAYATH BUILDTECH{% endblock %}
+
+{% block content %}
+<!-- Top Metrics Bar -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <span class="metric-label">Total Employees</span>
+    <span class="metric-value">{{ summary.total_employees }}</span>
+    <span class="metric-sub">Found in spreadsheet</span>
+  </div>
+  <div class="metric-card cyan">
+    <span class="metric-label">Total Gross Entitled</span>
+    <span class="metric-value">₹{{ summary.total_gross }}</span>
+    <span class="metric-sub">Monthly payroll commitment</span>
+  </div>
+  <div class="metric-card warning">
+    <span class="metric-label">Total Deductions</span>
+    <span class="metric-value">₹{{ summary.total_ded }}</span>
+    <span class="metric-sub">PF, ESI &amp; Professional Tax</span>
+  </div>
+  <div class="metric-card success">
+    <span class="metric-label">Net Payroll Payout</span>
+    <span class="metric-value">₹{{ summary.total_payout }}</span>
+    <span class="metric-sub">Total take-home payable</span>
+  </div>
+</div>
+
+<!-- Column Mapping Card -->
+<section class="mapping-section glass-card">
+  <div class="section-header-row">
+    <div class="section-title-wrap">
+      <h2>Column Mapping Configuration</h2>
+      <p>Verify or adjust how columns in your spreadsheet match the official payslip fields.</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <span class="status-badge badge-matched" style="font-size:0.75rem; padding:0.35rem 0.75rem;">
+        {{ summary.mapped_count }} of {{ summary.total_fields }} Fields Matched
+      </span>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleMappingDrawer()">
+        <span id="toggleMappingText">Hide Mappings</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="mappingGridContainer" class="mapping-grid">
+    {% for key, label, aliases in fields %}
+      {% set matched_col = mapping.get(key) %}
+      <div class="mapping-item">
+        <div class="mapping-field-header">
+          <span class="mapping-field-name">{{ label }}</span>
+          {% if matched_col %}
+            <span class="status-badge badge-matched">Matched</span>
+          {% else %}
+            <span class="status-badge badge-unmapped">Unmapped</span>
+          {% endif %}
+        </div>
+        <select class="mapping-select" data-field-key="{{ key }}" aria-label="Map {{ label }}">
+          <option value="">-- Not Mapped (Blank) --</option>
+          {% for col in columns %}
+            <option value="{{ col }}" {% if matched_col == col %}selected{% endif %}>
+              {{ col }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Employee Records Table Section -->
+<section class="glass-card" style="margin-bottom: 2rem;">
+  <div class="section-header-row">
+    <div class="section-title-wrap">
+      <h2>Employee Records &amp; Payslip Preview</h2>
+      <p>Preview payslips live in the browser, or download individual documents.</p>
+    </div>
+  </div>
+
+  <div class="table-filter-bar">
+    <div class="search-input-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="tableSearchInput" class="form-control" placeholder="Search by name, code, department...">
+    </div>
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <button type="button" id="btnAddEmployee" class="btn btn-secondary btn-sm" onclick="openAddModal()" style="display:inline-flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Add Employee
+      </button>
+      <div style="font-size: 0.85rem; color: var(--text-secondary);">
+        Showing <strong id="visibleRowCount" style="color: var(--text-primary);">{{ records|length }}</strong> of <span id="totalRowCount">{{ records|length }}</span> employees
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="preview-table" id="employeeRecordsTable">
+      <thead>
+        <tr>
+          <th>Emp Code</th>
+          <th>Employee Name</th>
+          <th>Department &amp; Designation</th>
+          <th>Paid Days</th>
+          <th>Basic + DA</th>
+          <th>HRA</th>
+          <th>PF / ESI / PT</th>
+          <th>Gross Earned</th>
+          <th>Net Salary</th>
+          <th style="text-align: right; min-width: 260px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="employeeTableBody">
+        {% for row in records %}
+          {% set emp_code = row.get(mapping.get('code', ''), loop.index|string) %}
+          {% set emp_name = row.get(mapping.get('name', ''), 'Employee ' ~ loop.index) %}
+          {% set emp_dept = row.get(mapping.get('department', ''), 'OPERATION') %}
+          {% set emp_desig = row.get(mapping.get('designation', ''), '—') %}
+          {% set emp_paid = row.get(mapping.get('paid_days', ''), '30') %}
+          {% set emp_basic_ent = row.get(mapping.get('basic_entitled', ''), '0') %}
+          {% set emp_hra = row.get(mapping.get('hra_entitled', ''), '0') %}
+          {% set emp_gross = row.get(mapping.get('gross_earning', ''), '—') %}
+          {% set emp_net = row.get(mapping.get('net_amount', ''), '—') %}
+          {% set emp_pf = row.get(mapping.get('pf', ''), '0') %}
+          
+          <tr data-row-index="{{ loop.index0 }}" id="empRow_{{ loop.index0 }}">
+            <td class="cell-code"><span class="emp-code-badge">{{ emp_code }}</span></td>
+            <td class="cell-name"><strong>{{ emp_name }}</strong></td>
+            <td class="cell-dept">
+              <div style="font-weight: 500;">{{ emp_dept }}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">{{ emp_desig }}</div>
+            </td>
+            <td class="cell-paid">{{ emp_paid }}</td>
+            <td class="money-cell cell-basic">₹{{ emp_basic_ent }}</td>
+            <td class="money-cell cell-hra">₹{{ emp_hra }}</td>
+            <td style="font-size: 0.8rem; color: var(--text-muted);" class="cell-pf">
+              PF: {{ emp_pf }}
+            </td>
+            <td class="money-cell cell-gross">₹{{ emp_gross }}</td>
+            <td class="money-cell money-net cell-net">₹{{ emp_net }}</td>
+            <td style="text-align: right;">
+              <div class="table-actions" style="justify-content: flex-end; gap: 0.35rem; flex-wrap: nowrap;">
+                <!-- Single Employee Download Button -->
+                <button type="button" 
+                        class="btn btn-primary btn-sm btn-download-single"
+                        data-employee-index="{{ loop.index0 }}"
+                        title="Download Single PDF">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  PDF
+                </button>
+
+                <!-- Edit Employee Button -->
+                <button type="button" 
+                        class="btn btn-secondary btn-sm btn-edit-emp"
+                        onclick="openEditModal({{ loop.index0 }})"
+                        title="Edit Employee">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Edit
+                </button>
+
+                <!-- Delete Employee Button -->
+                <button type="button" 
+                        class="btn btn-danger btn-sm btn-delete-emp"
+                        onclick="deleteEmployee({{ loop.index0 }})"
+                        title="Delete Employee">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Floating Batch Actions Bar -->
+<div class="sticky-actions-bar">
+  <div class="batch-info">
+    <div class="batch-stat">
+      <span class="batch-stat-label">Payroll Period</span>
+      <span class="batch-stat-val">{{ month }}</span>
+    </div>
+    <div class="batch-stat" style="border-left: 1px solid var(--border-subtle); padding-left: 1.25rem;">
+      <span class="batch-stat-label">Selected Company</span>
+      <span class="batch-stat-val" style="font-size: 1rem;">{{ company }}</span>
+    </div>
+  </div>
+
+  <div class="batch-btns">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Upload Another File
+    </a>
+
+    <!-- Bulk Download All Button -->
+    <button type="button" id="downloadAllBtn" class="btn btn-success" style="font-size: 1rem; padding: 0.85rem 1.85rem;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span id="downloadAllBtnText">Download All Slips ({{ records|length }} PDFs in .ZIP)</span>
+    </button>
+  </div>
+</div>
+
+<!-- Employee Edit / Add Modal Dialog -->
+<div id="employeeEditModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+  <div class="modal-dialog edit-modal-dialog">
+    <div class="modal-header">
+      <h3 id="editModalTitle" class="modal-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit Employee Details
+      </h3>
+      <button type="button" class="modal-close-btn" onclick="closeEditModal()" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body edit-modal-body">
+      <input type="hidden" id="edit_row_index" value="-1">
+
+      <div class="edit-grid">
+        <!-- 1. Employee Info -->
+        <div class="edit-section-title">1. Employee Information</div>
+        <div class="form-group">
+          <label class="form-label">Employee Name *</label>
+          <input type="text" id="edit_name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Employee Code</label>
+          <input type="text" id="edit_code" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Designation</label>
+          <input type="text" id="edit_designation" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input type="text" id="edit_department" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <input type="text" id="edit_location" class="form-control" placeholder="BARODA">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unit</label>
+          <input type="text" id="edit_unit" class="form-control" placeholder="BARODA">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Joining Date</label>
+          <input type="text" id="edit_joining_date" class="form-control" placeholder="e.g. 22 Sep 2025">
+        </div>
+        <div class="form-group">
+          <label class="form-label">PAN No.</label>
+          <input type="text" id="edit_pan" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bank Account No.</label>
+          <input type="text" id="edit_bank" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">PF No. / UAN</label>
+          <input type="text" id="edit_pf_no" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ESI No.</label>
+          <input type="text" id="edit_esi_no" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Leave Balance</label>
+          <input type="text" id="edit_leave_bal" class="form-control" value="0">
+        </div>
+
+        <!-- 2. Attendance -->
+        <div class="edit-section-title">2. Attendance Details</div>
+        <div class="form-group">
+          <label class="form-label">Total Days</label>
+          <input type="number" id="edit_total_days" class="form-control" value="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Paid Days</label>
+          <input type="number" id="edit_paid_days" class="form-control" value="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Present Days</label>
+          <input type="number" id="edit_present" class="form-control" value="27">
+        </div>
+        <div class="form-group">
+          <label class="form-label">LWP (Unpaid)</label>
+          <input type="number" id="edit_lwp" class="form-control" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">NH (Holiday)</label>
+          <input type="number" id="edit_nh" class="form-control" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">WOFF (Week Off)</label>
+          <input type="number" id="edit_woff" class="form-control" value="4">
+        </div>
+
+        <!-- 3. Earnings -->
+        <div class="edit-section-title">3. Salary &amp; Earnings (₹)</div>
+        <div class="form-group">
+          <label class="form-label">Basic + DA</label>
+          <input type="number" step="any" id="edit_basic" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">HRA</label>
+          <input type="number" step="any" id="edit_hra" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Additional Allowance</label>
+          <input type="number" step="any" id="edit_add_allowance" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bonus</label>
+          <input type="number" step="any" id="edit_bonus" class="form-control calc-trigger" value="0">
+        </div>
+
+        <!-- 4. Deductions -->
+        <div class="edit-section-title">4. Deductions (₹)</div>
+        <div class="form-group">
+          <label class="form-label">PF Deduction</label>
+          <input type="number" step="any" id="edit_pf" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ESI Deduction</label>
+          <input type="number" step="any" id="edit_esi" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Professional Tax</label>
+          <input type="number" step="any" id="edit_pt" class="form-control calc-trigger" value="0">
+        </div>
+
+        <!-- Live Calculation Box -->
+        <div class="calc-summary-box">
+          <div class="calc-summary-item">
+            <span>Gross Earning</span>
+            <strong id="modal_calc_gross">₹0.00</strong>
+          </div>
+          <div class="calc-summary-item" style="border-left:1px solid #cbd5e1; border-right:1px solid #cbd5e1; padding: 0 1rem;">
+            <span>Gross Deduction</span>
+            <strong id="modal_calc_ded" style="color:#ef4444;">₹0.00</strong>
+          </div>
+          <div class="calc-summary-item net-highlight">
+            <span>Net Take-Home</span>
+            <strong id="modal_calc_net">₹0.00</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding: 1rem 1.5rem; background:#f8fafc; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:0.75rem;">
+      <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveEmployeeChanges()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Live In-Browser PDF Preview Modal Dialog -->
+<div id="pdfPreviewModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="modalTitle" class="modal-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        Payslip Preview
+      </h3>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button type="button" id="modalDownloadBtn" class="btn btn-primary btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download PDF
+        </button>
+        <button type="button" id="modalCloseBtn" class="modal-close-btn" aria-label="Close modal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="modalLoader" class="modal-loader">
+        <div class="spinner"></div>
+        <span style="font-size: 0.875rem; color: var(--text-secondary); font-weight: 500;">Rendering high-resolution payslip PDF...</span>
+      </div>
+      <iframe id="previewIframe" src="about:blank" title="Payslip Preview PDF"></iframe>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Embed records, mapping, and config as raw JSON in a script tag to avoid HTML escaping issues -->
+<script id="payrollDataScript" type="application/json">{{ payroll_data_json|safe }}</script>
+
+<script>
+// Parse the embedded JSON data reliably
+const _payrollData = JSON.parse(document.getElementById("payrollDataScript").textContent);
+let _records = _payrollData.records || [];
+let _mapping = _payrollData.mapping || {};
+const _month = _payrollData.month || "";
+const _company = _payrollData.company || "";
+const _address = _payrollData.address || "";
+
+function numVal(v) {
+  if (v === undefined || v === null) return 0;
+  const s = String(v).replace(/,/g, "").replace(/₹/g, "").replace(/INR/g, "").trim();
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function moneyFmt(v) {
+  const n = Math.round(numVal(v));
+  return n.toLocaleString("en-IN") + ".00";
+}
+
+function getRecordField(rec, key, defVal = "") {
+  const col = _mapping[key];
+  if (col && rec[col] !== undefined && rec[col] !== null && String(rec[col]).trim() !== "") {
+    return String(rec[col]).trim();
+  }
+  // Try direct key
+  if (rec[key] !== undefined && rec[key] !== null && String(rec[key]).trim() !== "") {
+    return String(rec[key]).trim();
+  }
+  return defVal;
+}
+
+function setRecordField(rec, key, val) {
+  const col = _mapping[key] || key;
+  rec[col] = String(val).trim();
+}
+
+function toggleMappingDrawer() {
+  const container = document.getElementById("mappingGridContainer");
+  const textSpan = document.getElementById("toggleMappingText");
+  if (!container || !textSpan) return;
+
+  if (container.style.display === "none") {
+    container.style.display = "grid";
+    textSpan.textContent = "Hide Mappings";
+  } else {
+    container.style.display = "none";
+    textSpan.textContent = "Show Mappings";
+  }
+}
+
+// ─── Modal Functions (Edit & Add) ───────────────────────────────────────────
+function openEditModal(rowIndex) {
+  const rec = _records[rowIndex];
+  if (!rec) return;
+
+  document.getElementById("edit_row_index").value = rowIndex;
+  document.getElementById("editModalTitle").innerHTML = `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+    Edit Employee: ${getRecordField(rec, "name", "Employee")}
+  `;
+
+  document.getElementById("edit_name").value         = getRecordField(rec, "name");
+  document.getElementById("edit_code").value         = getRecordField(rec, "code");
+  document.getElementById("edit_designation").value  = getRecordField(rec, "designation");
+  document.getElementById("edit_department").value   = getRecordField(rec, "department", "OPERATION");
+  document.getElementById("edit_location").value     = getRecordField(rec, "location", "BARODA");
+  document.getElementById("edit_unit").value         = getRecordField(rec, "unit", "BARODA");
+  document.getElementById("edit_joining_date").value = getRecordField(rec, "joining_date");
+  document.getElementById("edit_pan").value          = getRecordField(rec, "pan");
+  document.getElementById("edit_bank").value         = getRecordField(rec, "bank", "N/A");
+  document.getElementById("edit_pf_no").value        = getRecordField(rec, "pf_no", "N/A");
+  document.getElementById("edit_esi_no").value       = getRecordField(rec, "esi_no", "N/A");
+  document.getElementById("edit_leave_bal").value    = getRecordField(rec, "leave_bal", "0");
+
+  document.getElementById("edit_total_days").value   = getRecordField(rec, "total_days", "30");
+  document.getElementById("edit_paid_days").value    = getRecordField(rec, "paid_days", "30");
+  document.getElementById("edit_present").value      = getRecordField(rec, "present", "27");
+  document.getElementById("edit_lwp").value          = getRecordField(rec, "lwp", "0");
+  document.getElementById("edit_nh").value           = getRecordField(rec, "nh", "0");
+  document.getElementById("edit_woff").value         = getRecordField(rec, "woff", "4");
+
+  document.getElementById("edit_basic").value        = Math.round(numVal(getRecordField(rec, "basic_entitled")));
+  document.getElementById("edit_hra").value          = Math.round(numVal(getRecordField(rec, "hra_entitled")));
+  document.getElementById("edit_add_allowance").value= Math.round(numVal(getRecordField(rec, "add_allowance", "0")));
+  document.getElementById("edit_bonus").value        = Math.round(numVal(getRecordField(rec, "bonus_entitled", "0")));
+
+  document.getElementById("edit_pf").value           = Math.round(numVal(getRecordField(rec, "pf", "0")));
+  document.getElementById("edit_esi").value          = Math.round(numVal(getRecordField(rec, "esi", "0")));
+  document.getElementById("edit_pt").value           = Math.round(numVal(getRecordField(rec, "prof_tax", "200")));
+
+  recalculateModalFinancials();
+  document.getElementById("employeeEditModal").style.display = "flex";
+}
+
+function openAddModal() {
+  document.getElementById("edit_row_index").value = -1;
+  document.getElementById("editModalTitle").innerHTML = `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    Add New Employee
+  `;
+
+  document.getElementById("edit_name").value         = "";
+  document.getElementById("edit_code").value         = `EMP${String(_records.length + 1).padStart(3, "0")}`;
+  document.getElementById("edit_designation").value  = "Staff";
+  document.getElementById("edit_department").value   = "OPERATION";
+  document.getElementById("edit_location").value     = "BARODA";
+  document.getElementById("edit_unit").value         = "BARODA";
+  document.getElementById("edit_joining_date").value = "";
+  document.getElementById("edit_pan").value          = "";
+  document.getElementById("edit_bank").value         = "N/A";
+  document.getElementById("edit_pf_no").value        = "N/A";
+  document.getElementById("edit_esi_no").value       = "N/A";
+  document.getElementById("edit_leave_bal").value    = "0";
+
+  document.getElementById("edit_total_days").value   = 30;
+  document.getElementById("edit_paid_days").value    = 30;
+  document.getElementById("edit_present").value      = 27;
+  document.getElementById("edit_lwp").value          = 0;
+  document.getElementById("edit_nh").value           = 0;
+  document.getElementById("edit_woff").value         = 4;
+
+  document.getElementById("edit_basic").value        = 0;
+  document.getElementById("edit_hra").value          = 0;
+  document.getElementById("edit_add_allowance").value= 0;
+  document.getElementById("edit_bonus").value        = 0;
+
+  document.getElementById("edit_pf").value           = 0;
+  document.getElementById("edit_esi").value          = 0;
+  document.getElementById("edit_pt").value           = 200;
+
+  recalculateModalFinancials();
+  document.getElementById("employeeEditModal").style.display = "flex";
+}
+
+function closeEditModal() {
+  document.getElementById("employeeEditModal").style.display = "none";
+}
+
+function recalculateModalFinancials() {
+  const b   = numVal(document.getElementById("edit_basic").value);
+  const h   = numVal(document.getElementById("edit_hra").value);
+  const a   = numVal(document.getElementById("edit_add_allowance").value);
+  const bon = numVal(document.getElementById("edit_bonus").value);
+  const gross = Math.round(b + h + a + bon);
+
+  const pf  = numVal(document.getElementById("edit_pf").value);
+  const esi = numVal(document.getElementById("edit_esi").value);
+  const pt  = numVal(document.getElementById("edit_pt").value);
+  const ded = Math.round(pf + esi + pt);
+
+  const net = gross - ded;
+
+  document.getElementById("modal_calc_gross").textContent = `₹${gross.toLocaleString("en-IN")}.00`;
+  document.getElementById("modal_calc_ded").textContent   = `₹${ded.toLocaleString("en-IN")}.00`;
+  document.getElementById("modal_calc_net").textContent   = `₹${net.toLocaleString("en-IN")}.00`;
+}
+
+// Attach input listeners to modal triggers
+document.querySelectorAll(".calc-trigger").forEach((input) => {
+  input.addEventListener("input", recalculateModalFinancials);
+});
+
+function saveEmployeeChanges() {
+  const name = document.getElementById("edit_name").value.trim();
+  if (!name) {
+    alert("Please enter Employee Name.");
+    document.getElementById("edit_name").focus();
+    return;
+  }
+
+  const rowIndex = parseInt(document.getElementById("edit_row_index").value, 10);
+  let rec = (rowIndex >= 0 && rowIndex < _records.length) ? _records[rowIndex] : {};
+
+  setRecordField(rec, "name", name);
+  setRecordField(rec, "code", document.getElementById("edit_code").value);
+  setRecordField(rec, "designation", document.getElementById("edit_designation").value);
+  setRecordField(rec, "department", document.getElementById("edit_department").value);
+  setRecordField(rec, "location", document.getElementById("edit_location").value);
+  setRecordField(rec, "unit", document.getElementById("edit_unit").value);
+  setRecordField(rec, "joining_date", document.getElementById("edit_joining_date").value);
+  setRecordField(rec, "pan", document.getElementById("edit_pan").value);
+  setRecordField(rec, "bank", document.getElementById("edit_bank").value);
+  setRecordField(rec, "pf_no", document.getElementById("edit_pf_no").value);
+  setRecordField(rec, "esi_no", document.getElementById("edit_esi_no").value);
+  setRecordField(rec, "leave_bal", document.getElementById("edit_leave_bal").value);
+
+  setRecordField(rec, "total_days", document.getElementById("edit_total_days").value);
+  setRecordField(rec, "paid_days", document.getElementById("edit_paid_days").value);
+  setRecordField(rec, "present", document.getElementById("edit_present").value);
+  setRecordField(rec, "lwp", document.getElementById("edit_lwp").value);
+  setRecordField(rec, "nh", document.getElementById("edit_nh").value);
+  setRecordField(rec, "woff", document.getElementById("edit_woff").value);
+
+  const b = Math.round(numVal(document.getElementById("edit_basic").value));
+  const h = Math.round(numVal(document.getElementById("edit_hra").value));
+  const a = Math.round(numVal(document.getElementById("edit_add_allowance").value));
+  const bon = Math.round(numVal(document.getElementById("edit_bonus").value));
+  const gross = b + h + a + bon;
+
+  const pf = Math.round(numVal(document.getElementById("edit_pf").value));
+  const esi = Math.round(numVal(document.getElementById("edit_esi").value));
+  const pt = Math.round(numVal(document.getElementById("edit_pt").value));
+  const ded = pf + esi + pt;
+  const net = gross - ded;
+
+  setRecordField(rec, "basic_entitled", b);
+  setRecordField(rec, "basic_earned", b);
+  setRecordField(rec, "hra_entitled", h);
+  setRecordField(rec, "hra_earned", h);
+  setRecordField(rec, "add_allowance", a);
+  setRecordField(rec, "bonus_entitled", bon);
+  setRecordField(rec, "bonus_earned", bon);
+  setRecordField(rec, "gross_earning", gross);
+
+  setRecordField(rec, "pf", pf);
+  setRecordField(rec, "esi", esi);
+  setRecordField(rec, "prof_tax", pt);
+  setRecordField(rec, "gross_deduction", ded);
+  setRecordField(rec, "net_amount", net);
+
+  if (rowIndex === -1) {
+    _records.push(rec);
+  }
+
+  closeEditModal();
+  rebuildTable();
+  recalculateTopMetrics();
+}
+
+function deleteEmployee(rowIndex) {
+  const rec = _records[rowIndex];
+  if (!rec) return;
+
+  const empName = getRecordField(rec, "name", "this employee");
+  if (!confirm(`Are you sure you want to remove ${empName}?`)) {
+    return;
+  }
+
+  _records.splice(rowIndex, 1);
+  rebuildTable();
+  recalculateTopMetrics();
+}
+
+function rebuildTable() {
+  const tbody = document.getElementById("employeeTableBody");
+  tbody.innerHTML = "";
+
+  _records.forEach((row, idx) => {
+    const empCode = getRecordField(row, "code", String(idx + 1));
+    const empName = getRecordField(row, "name", "Employee " + (idx + 1));
+    const empDept = getRecordField(row, "department", "OPERATION");
+    const empDesig = getRecordField(row, "designation", "—");
+    const empPaid = getRecordField(row, "paid_days", "30");
+    const empBasic = Math.round(numVal(getRecordField(row, "basic_entitled")));
+    const empHra = Math.round(numVal(getRecordField(row, "hra_entitled")));
+    const empPf = Math.round(numVal(getRecordField(row, "pf", "0")));
+    const empGross = Math.round(numVal(getRecordField(row, "gross_earning")));
+    const empNet = Math.round(numVal(getRecordField(row, "net_amount")));
+
+    const tr = document.createElement("tr");
+    tr.id = `empRow_${idx}`;
+    tr.dataset.rowIndex = idx;
+
+    tr.innerHTML = `
+      <td class="cell-code"><span class="emp-code-badge">${empCode}</span></td>
+      <td class="cell-name"><strong>${empName}</strong></td>
+      <td class="cell-dept">
+        <div style="font-weight: 500;">${empDept}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">${empDesig}</div>
+      </td>
+      <td class="cell-paid">${empPaid}</td>
+      <td class="money-cell cell-basic">₹${empBasic.toLocaleString("en-IN")}</td>
+      <td class="money-cell cell-hra">₹${empHra.toLocaleString("en-IN")}</td>
+      <td style="font-size: 0.8rem; color: var(--text-muted);" class="cell-pf">PF: ${empPf}</td>
+      <td class="money-cell cell-gross">₹${empGross.toLocaleString("en-IN")}</td>
+      <td class="money-cell money-net cell-net">₹${empNet.toLocaleString("en-IN")}</td>
+      <td style="text-align: right;">
+        <div class="table-actions" style="justify-content: flex-end; gap: 0.35rem; flex-wrap: nowrap;">
+          <button type="button" class="btn btn-primary btn-sm btn-download-single" data-employee-index="${idx}" title="Download Single PDF">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            PDF
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm btn-edit-emp" onclick="openEditModal(${idx})" title="Edit Employee">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Edit
+          </button>
+          <button type="button" class="btn btn-danger btn-sm btn-delete-emp" onclick="deleteEmployee(${idx})" title="Delete Employee">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Delete
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("visibleRowCount").textContent = _records.length;
+  document.getElementById("totalRowCount").textContent   = _records.length;
+  const btnText = document.getElementById("downloadAllBtnText");
+  if (btnText) {
+    btnText.textContent = `Download All Slips (${_records.length} PDFs in .ZIP)`;
+  }
+
+  // Re-bind preview & download buttons
+  bindRowActionButtons();
+}
+
+function recalculateTopMetrics() {
+  let totalGross = 0;
+  let totalDed = 0;
+  let totalNet = 0;
+
+  _records.forEach((row) => {
+    const b = Math.round(numVal(getRecordField(row, "basic_entitled")));
+    const h = Math.round(numVal(getRecordField(row, "hra_entitled")));
+    const a = Math.round(numVal(getRecordField(row, "add_allowance", "0")));
+    const bon = Math.round(numVal(getRecordField(row, "bonus_entitled", "0")));
+    const gross = Math.round(numVal(getRecordField(row, "gross_earning", b + h + a + bon)));
+
+    const pf = Math.round(numVal(getRecordField(row, "pf", "0")));
+    const esi = Math.round(numVal(getRecordField(row, "esi", "0")));
+    const pt = Math.round(numVal(getRecordField(row, "prof_tax", "0")));
+    const ded = Math.round(numVal(getRecordField(row, "gross_deduction", pf + esi + pt)));
+
+    const net = Math.round(numVal(getRecordField(row, "net_amount", gross - ded)));
+
+    totalGross += gross;
+    totalDed += ded;
+    totalNet += net;
+  });
+
+  const cards = document.querySelectorAll(".metric-card .metric-value");
+  if (cards.length >= 4) {
+    cards[0].textContent = _records.length;
+    cards[1].textContent = `₹${totalGross.toLocaleString("en-IN")}.00`;
+    cards[2].textContent = `₹${totalDed.toLocaleString("en-IN")}.00`;
+    cards[3].textContent = `₹${totalNet.toLocaleString("en-IN")}.00`;
+  }
+}
+
+function bindRowActionButtons() {
+  // Single-employee download handlers
+  document.querySelectorAll(".btn-download-single").forEach((btn) => {
+    btn.onclick = () => {
+      const idx = btn.dataset.employeeIndex;
+      submitGenerateForm(idx);
+    };
+  });
+}
+
+async function showEmployeePreview(idx) {
+  window.showEmployeePreview = showEmployeePreview;
+  const modal = document.getElementById("pdfPreviewModal");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalLoader = document.getElementById("modalLoader");
+  const previewIframe = document.getElementById("previewIframe");
+  const modalDownloadBtn = document.getElementById("modalDownloadBtn");
+
+  const rec = _records[idx];
+  if (!rec) return;
+
+  const empName = getRecordField(rec, "name", "Employee");
+  const empCode = getRecordField(rec, "code", String(idx + 1));
+
+  modalTitle.textContent = `Payslip Preview — ${empName} (${empCode})`;
+  modal.style.display = "flex";
+  if (modalLoader) modalLoader.style.display = "flex";
+  if (previewIframe) previewIframe.style.opacity = "0";
+
+  try {
+    const currentMapping = getCurrentMapping();
+    const response = await fetch("/preview-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        record: rec,
+        mapping: currentMapping,
+        month: _month,
+        company: _company,
+        address: _address
+      })
+    });
+
+    if (!response.ok) throw new Error("Failed to render PDF preview.");
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    if (previewIframe) {
+      previewIframe.src = blobUrl;
+      previewIframe.onload = () => {
+        if (modalLoader) modalLoader.style.display = "none";
+        previewIframe.style.opacity = "1";
+      };
+    }
+
+    if (modalDownloadBtn) {
+      modalDownloadBtn.onclick = () => {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `Payslip_${empName.replace(/\s+/g, "_")}_${empCode}.pdf`;
+        a.click();
+      };
+    }
+  } catch (err) {
+    if (modalLoader) {
+      modalLoader.innerHTML = `
+        <p style="color:#ef4444;font-weight:600;">Error generating preview: ${err.message}</p>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('pdfPreviewModal').style.display='none'">Close</button>
+      `;
+    }
+  }
+}
+
+function submitGenerateForm(employeeIndex) {
+  const currentMapping = getCurrentMapping();
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/generate";
+  form.style.display = "none";
+
+  const fields = {
+    records: JSON.stringify(_records),
+    mapping: JSON.stringify(currentMapping),
+    month: _month,
+    company: _company,
+    address: _address,
+    employee_index: String(employeeIndex)
+  };
+
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function getCurrentMapping() {
+  const mapping = {};
+  const selects = document.querySelectorAll(".mapping-select");
+  if (selects.length > 0) {
+    selects.forEach((sel) => {
+      const key = sel.dataset.fieldKey;
+      if (key && sel.value) {
+        mapping[key] = sel.value;
+      }
+    });
+    return mapping;
+  }
+  return _mapping;
+}
+
+// Initial setup on DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  bindRowActionButtons();
+
+  const downloadAllBtn = document.getElementById("downloadAllBtn");
+  if (downloadAllBtn) {
+    downloadAllBtn.addEventListener("click", () => {
+      submitGenerateForm("all");
+    });
+  }
+
+  const previewModalClose = document.getElementById("modalCloseBtn");
+  if (previewModalClose) {
+    previewModalClose.onclick = () => {
+      document.getElementById("pdfPreviewModal").style.display = "none";
+    };
+  }
+
+  window.addEventListener("click", (e) => {
+    const pModal = document.getElementById("pdfPreviewModal");
+    const eModal = document.getElementById("employeeEditModal");
+    if (e.target === pModal) pModal.style.display = "none";
+    if (e.target === eModal) closeEditModal();
+  });
+});
+</script>
+{% endblock %}
