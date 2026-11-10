@@ -11,3 +11,4 @@ from app import app
 # Expose app for Vercel serverless runtime
 if __name__ == "__main__":
     app.run()
+
