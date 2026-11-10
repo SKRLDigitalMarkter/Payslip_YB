@@ -5,7 +5,7 @@ import json
 import zipfile
 import tempfile
 from datetime import datetime
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, Response
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, Response, session
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether, Image as RLImage
@@ -569,6 +569,40 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
     doc.build(story)
     buf.seek(0)
     return buf.getvalue()
+
+AUTH_USER = os.environ.get("AUTH_USER", "HR123")
+AUTH_PASS = os.environ.get("AUTH_PASS", "HR123#")
+
+@app.before_request
+def require_login():
+    allowed_endpoints = {"login", "static"}
+    if request.endpoint and request.endpoint not in allowed_endpoints:
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("logged_in"):
+        return redirect(url_for("index"))
+
+    error = None
+    if request.method == "POST":
+        uid = request.form.get("user_id", "").strip()
+        pwd = request.form.get("password", "").strip()
+
+        if uid == AUTH_USER and pwd == AUTH_PASS:
+            session["logged_in"] = True
+            session["user"] = uid
+            return redirect(url_for("index"))
+        else:
+            error = "Invalid User ID or Password. Please try again."
+
+    return render_template("login.html", error=error)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 @app.route("/", methods=["GET", "POST"])
 def index():
