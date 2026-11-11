@@ -182,12 +182,13 @@ def num(v):
     except Exception:
         return 0.0
 
-def detect_location(banner_text: str = "", filename: str = "") -> str:
-    """Auto-detect site / location from uploaded file banner or filename."""
+def detect_location(banner_text: str = "", filename: str = "", raw_df=None, sheet_names=None) -> str:
+    """Auto-detect site / location from uploaded file banner, tab name, filename, or sheet cells."""
     CITIES = [
         "GOA", "RAJKOT", "BARODA", "VADODARA", "SURAT", "AHMEDABAD",
         "GURUGRAM", "GURGAON", "NOIDA", "MUMBAI", "PUNE", "DELHI",
-        "JAIPUR", "INDORE", "BENGALURU", "BANGALORE", "HYDERABAD", "CHENNAI", "KOLKATA"
+        "JAIPUR", "INDORE", "BENGALURU", "BANGALORE", "HYDERABAD", "CHENNAI", "KOLKATA",
+        "LUCKNOW", "KANPUR", "BHOPAL", "NAGPUR", "CHANDIGARH", "FARIDABAD", "GHAZIABAD"
     ]
     # 1. From banner text (e.g. "Adidev - Goa")
     if banner_text:
@@ -202,13 +203,29 @@ def detect_location(banner_text: str = "", filename: str = "") -> str:
             if re.search(rf"\b{city}\b", bt_upper):
                 return "BARODA" if city == "VADODARA" else city
 
-    # 2. From filename (e.g. "GOA_-_WAGE_SHEET_-_Oct_26.xlsx")
+    # 2. From sheet / tab names (e.g. Excel tab named "Goa", "Rajkot", "Baroda")
+    if sheet_names:
+        for sname in sheet_names:
+            s_upper = str(sname).upper()
+            for city in CITIES:
+                if re.search(rf"\b{city}\b", s_upper) or city in s_upper:
+                    return "BARODA" if city == "VADODARA" else city
+
+    # 3. From filename (e.g. "GOA_-_WAGE_SHEET_-_Oct_26.xlsx")
     fn_upper = os.path.basename(str(filename)).upper()
     for city in CITIES:
         if re.search(rf"\b{city}\b", fn_upper) or city in fn_upper:
             return "BARODA" if city == "VADODARA" else city
 
-    # 3. Clean banner fallback
+    # 4. Search first 10 rows of raw_df for any recognized city / site name
+    if raw_df is not None and not raw_df.empty:
+        for r_idx in range(min(10, len(raw_df))):
+            row_str = " ".join(str(v).strip().upper() for v in raw_df.iloc[r_idx] if str(v).strip())
+            for city in CITIES:
+                if re.search(rf"\b{city}\b", row_str):
+                    return "BARODA" if city == "VADODARA" else city
+
+    # 5. Clean banner fallback
     if banner_text:
         clean_b = re.sub(r"[^A-Za-z0-9\s-]", " ", str(banner_text)).strip()
         if clean_b:
@@ -335,39 +352,25 @@ def calculate_row_financials(row, mapping):
 
     calc_ded = pf_ded + esi_ded + pt_ded + lwf_ded
 
-    # Check if Gross Deduction is explicitly mapped and provided in sheet
-    sheet_ded_raw = getval(row, mapping, "gross_deduction", "")
-    if sheet_ded_raw != "" and num(sheet_ded_raw) > 0:
-        gross_ded = round(num(sheet_ded_raw))
-    else:
-        gross_ded = calc_ded
-
     # Sum of individual earnings components
     calc_gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_earn + bon_arr
 
     # Check if NetSal / net_amount is explicitly mapped and provided in sheet
     sheet_net_raw = getval(row, mapping, "net_amount", "")
-    sheet_gross_raw = getval(row, mapping, "gross_earning", "")
 
     if sheet_net_raw != "" and num(sheet_net_raw) > 0:
-        # User's sheet has explicit NetSal — match NetSal exactly!
+        # Match NetSal from sheet exactly, and ensure Gross Earning - Gross Deduction = Net Amount
         net = round(num(sheet_net_raw))
-        if sheet_gross_raw != "" and num(sheet_gross_raw) > 0:
-            gross_earn = round(num(sheet_gross_raw))
-            # Ensure gross_earn - gross_ded = net consistency
-            if abs((gross_earn - gross_ded) - net) <= 3:
-                gross_earn = net + gross_ded
-        else:
-            gross_earn = net + gross_ded
+        gross_ded = calc_ded
+        # If components sum to net + ded, use it; otherwise guarantee exact balance
+        gross_earn = calc_gross_earn if (calc_gross_earn - gross_ded) == net else (net + gross_ded)
         gross_ent = gross_earn
     else:
         # Fallback to calculated values if NetSal column not provided
-        if sheet_gross_raw != "" and num(sheet_gross_raw) > 0:
-            gross_earn = round(num(sheet_gross_raw))
-        else:
-            gross_earn = calc_gross_earn
-        gross_ent = b_ent + h_ent + add_ent + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_ent
+        gross_earn = calc_gross_earn
+        gross_ded = calc_ded
         net = gross_earn - gross_ded
+        gross_ent = b_ent + h_ent + add_ent + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_ent
 
     return {
         "basic_ent": b_ent, "basic_earn": b_earn, "basic_arr": b_arr,
@@ -561,8 +564,8 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
     emp_unit = (getval(row, mapping, "unit") or emp_loc).strip()
 
     right_fields = [
-        ("Location",         emp_loc or "Site Office"),
-        ("Unit",             emp_unit or "Site Office"),
+        ("Location",         emp_loc or "N/A"),
+        ("Unit",             emp_unit or emp_loc or "N/A"),
         ("Joining Date",     getval(row, mapping, "joining_date") or ""),
         ("Paid days",        f"{float(paid_d):.2f}" if paid_d and str(paid_d).replace('.', '', 1).isdigit() else paid_d),
         ("Bank Account No.", getval(row, mapping, "bank", "N/A")),
@@ -589,9 +592,9 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
         r = right_fields[i] if i < len(right_fields) and right_fields[i][0] else ("", "")
         att = attend_fields[i] if i < len(attend_fields) and attend_fields[i][0] else ("", "")
 
-        col1_text = f"<b>{l[0]}</b> :{l[1]}" if l[0] else ""
-        col2_text = f"<b>{r[0]}</b> :{r[1]}" if r[0] else ""
-        col3_text = f"<b>{att[0]}</b> :{att[1]}" if att[0] else ""
+        col1_text = f"<b>{l[0]}</b> : {l[1]}" if l[0] else ""
+        col2_text = f"<b>{r[0]}</b> : {r[1]}" if r[0] else ""
+        col3_text = f"<b>{att[0]}</b> : {att[1]}" if att[0] else ""
 
         detail_data.append([
             Paragraph(col1_text, normal_text),
@@ -798,10 +801,17 @@ def index():
 
         try:
             # Smart sheet reader: scans up to 15 rows for headers and detects site banners (e.g. "Adidev - Goa")
+            sheet_names = []
             if ext == ".csv":
                 raw_df = pd.read_csv(f, dtype=str, header=None).fillna("")
             else:
                 raw_df = pd.read_excel(f, dtype=str, header=None).fillna("")
+                try:
+                    f.seek(0)
+                    xl = pd.ExcelFile(f)
+                    sheet_names = xl.sheet_names
+                except Exception:
+                    sheet_names = []
 
             header_row_idx = 0
             max_score = -1
@@ -895,15 +905,17 @@ def index():
         company = request.form.get("company") or DEFAULT_COMPANY
         address = request.form.get("address") or DEFAULT_ADDRESS
         form_location = request.form.get("location", "").strip()
-        detected_loc = form_location or detect_location(detected_site_name, f.filename)
+        detected_loc = form_location or detect_location(detected_site_name, f.filename, raw_df=raw_df, sheet_names=sheet_names)
         location = detected_loc.upper() if detected_loc else ""
 
-        # Calculate quick summary aggregates
+        # Calculate quick summary aggregates and attach calculated values
         total_payout = 0.0
         total_gross = 0.0
         total_ded = 0.0
         for r in records:
             fin = calculate_row_financials(pd.Series(r), mapping)
+            r["_calc_gross"] = f"{fin['gross_earn']:,.2f}"
+            r["_calc_net"] = f"{fin['net']:,.2f}"
             total_payout += fin["net"]
             total_gross += fin["gross_earn"]
             total_ded += fin["gross_ded"]

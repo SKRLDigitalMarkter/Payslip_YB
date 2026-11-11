@@ -139,8 +139,8 @@
             <td style="font-size: 0.8rem; color: var(--text-muted);" class="cell-pf">
               PF: {{ emp_pf }}
             </td>
-            <td class="money-cell cell-gross">₹{{ emp_gross }}</td>
-            <td class="money-cell money-net cell-net">₹{{ emp_net }}</td>
+            <td class="money-cell cell-gross">₹{{ row.get('_calc_gross', emp_gross) }}</td>
+            <td class="money-cell money-net cell-net">₹{{ row.get('_calc_net', emp_net) }}</td>
             <td style="text-align: right;">
               <div class="table-actions" style="justify-content: flex-end; gap: 0.35rem; flex-wrap: nowrap;">
                 <!-- Single Employee Download Button -->
@@ -344,6 +344,22 @@
           <input type="number" step="any" id="edit_add_allowance" class="form-control calc-trigger" value="0">
         </div>
         <div class="form-group">
+          <label class="form-label">Conveyance Allowance</label>
+          <input type="number" step="any" id="edit_conveyance" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Washing Allowance</label>
+          <input type="number" step="any" id="edit_washing" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Incentive</label>
+          <input type="number" step="any" id="edit_incentive" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Leave Encashment</label>
+          <input type="number" step="any" id="edit_leave_encashment" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
           <label class="form-label">Bonus</label>
           <input type="number" step="any" id="edit_bonus" class="form-control calc-trigger" value="0">
         </div>
@@ -369,6 +385,10 @@
         <div class="form-group">
           <label class="form-label">Professional Tax</label>
           <input type="number" step="any" id="edit_pt" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">LWF Deduction</label>
+          <input type="number" step="any" id="edit_lwf" class="form-control calc-trigger" value="0">
         </div>
 
         <!-- Live Calculation Box -->
@@ -502,12 +522,15 @@ function openEditModal(rowIndex) {
     Edit Employee: ${getRecordField(rec, "name", "Employee")}
   `;
 
+  const siteInput = document.getElementById("siteLocationInput");
+  const activeLoc = (siteInput && siteInput.value.trim()) ? siteInput.value.trim().toUpperCase() : _location;
+
   document.getElementById("edit_name").value         = getRecordField(rec, "name");
   document.getElementById("edit_code").value         = getRecordField(rec, "code");
   document.getElementById("edit_designation").value  = getRecordField(rec, "designation");
   document.getElementById("edit_department").value   = getRecordField(rec, "department", "OPERATION");
-  document.getElementById("edit_location").value     = getRecordField(rec, "location", _location || "Site Office");
-  document.getElementById("edit_unit").value         = getRecordField(rec, "unit", _location || "Site Office");
+  document.getElementById("edit_location").value     = getRecordField(rec, "location", activeLoc || "");
+  document.getElementById("edit_unit").value         = getRecordField(rec, "unit", activeLoc || "");
   document.getElementById("edit_joining_date").value = getRecordField(rec, "joining_date");
   document.getElementById("edit_pan").value          = getRecordField(rec, "pan");
   document.getElementById("edit_bank").value         = getRecordField(rec, "bank", "N/A");
@@ -527,6 +550,10 @@ function openEditModal(rowIndex) {
   document.getElementById("edit_basic").value        = Math.round(numVal(getRecordField(rec, "basic_entitled")));
   document.getElementById("edit_hra").value          = Math.round(numVal(getRecordField(rec, "hra_entitled")));
   document.getElementById("edit_add_allowance").value= Math.round(numVal(getRecordField(rec, "add_allowance", "0")));
+  document.getElementById("edit_conveyance").value   = Math.round(numVal(getRecordField(rec, "conveyance", "0")));
+  document.getElementById("edit_washing").value      = Math.round(numVal(getRecordField(rec, "washing", "0")));
+  document.getElementById("edit_incentive").value    = Math.round(numVal(getRecordField(rec, "incentive", "0")));
+  document.getElementById("edit_leave_encashment").value = Math.round(numVal(getRecordField(rec, "leave_encashment", "0")));
   document.getElementById("edit_bonus").value        = Math.round(numVal(getRecordField(rec, "bonus_entitled", "0")));
   document.getElementById("edit_extra_day_earn").value = Math.round(numVal(getRecordField(rec, "extra_day_earn", getRecordField(rec, "extra_day", "0"))));
   document.getElementById("edit_ot").value             = Math.round(numVal(getRecordField(rec, "ot", "0")));
@@ -534,6 +561,7 @@ function openEditModal(rowIndex) {
   document.getElementById("edit_pf").value           = Math.round(numVal(getRecordField(rec, "pf", "0")));
   document.getElementById("edit_esi").value          = Math.round(numVal(getRecordField(rec, "esi", "0")));
   document.getElementById("edit_pt").value           = Math.round(numVal(getRecordField(rec, "prof_tax", "200")));
+  document.getElementById("edit_lwf").value          = Math.round(numVal(getRecordField(rec, "lwf", "0")));
 
   recalculateModalFinancials();
   document.getElementById("employeeEditModal").style.display = "flex";
@@ -546,12 +574,15 @@ function openAddModal() {
     Add New Employee
   `;
 
+  const siteInput = document.getElementById("siteLocationInput");
+  const activeLoc = (siteInput && siteInput.value.trim()) ? siteInput.value.trim().toUpperCase() : _location;
+
   document.getElementById("edit_name").value         = "";
   document.getElementById("edit_code").value         = `EMP${String(_records.length + 1).padStart(3, "0")}`;
   document.getElementById("edit_designation").value  = "Staff";
   document.getElementById("edit_department").value   = "OPERATION";
-  document.getElementById("edit_location").value     = _location || "Site Office";
-  document.getElementById("edit_unit").value         = _location || "Site Office";
+  document.getElementById("edit_location").value     = activeLoc || "";
+  document.getElementById("edit_unit").value         = activeLoc || "";
   document.getElementById("edit_joining_date").value = "";
   document.getElementById("edit_pan").value          = "";
   document.getElementById("edit_bank").value         = "N/A";
@@ -571,6 +602,10 @@ function openAddModal() {
   document.getElementById("edit_basic").value        = 0;
   document.getElementById("edit_hra").value          = 0;
   document.getElementById("edit_add_allowance").value= 0;
+  document.getElementById("edit_conveyance").value   = 0;
+  document.getElementById("edit_washing").value      = 0;
+  document.getElementById("edit_incentive").value    = 0;
+  document.getElementById("edit_leave_encashment").value = 0;
   document.getElementById("edit_bonus").value        = 0;
   document.getElementById("edit_extra_day_earn").value = 0;
   document.getElementById("edit_ot").value             = 0;
@@ -578,6 +613,7 @@ function openAddModal() {
   document.getElementById("edit_pf").value           = 0;
   document.getElementById("edit_esi").value          = 0;
   document.getElementById("edit_pt").value           = 200;
+  document.getElementById("edit_lwf").value          = 0;
 
   recalculateModalFinancials();
   document.getElementById("employeeEditModal").style.display = "flex";
@@ -588,18 +624,23 @@ function closeEditModal() {
 }
 
 function recalculateModalFinancials() {
-  const b   = numVal(document.getElementById("edit_basic").value);
-  const h   = numVal(document.getElementById("edit_hra").value);
-  const a   = numVal(document.getElementById("edit_add_allowance").value);
-  const bon = numVal(document.getElementById("edit_bonus").value);
-  const ed  = numVal(document.getElementById("edit_extra_day_earn") ? document.getElementById("edit_extra_day_earn").value : 0);
-  const ot  = numVal(document.getElementById("edit_ot") ? document.getElementById("edit_ot").value : 0);
-  const gross = Math.round(b + h + a + bon + ed + ot);
+  const b    = numVal(document.getElementById("edit_basic").value);
+  const h    = numVal(document.getElementById("edit_hra").value);
+  const a    = numVal(document.getElementById("edit_add_allowance").value);
+  const conv = numVal(document.getElementById("edit_conveyance") ? document.getElementById("edit_conveyance").value : 0);
+  const wash = numVal(document.getElementById("edit_washing") ? document.getElementById("edit_washing").value : 0);
+  const inc  = numVal(document.getElementById("edit_incentive") ? document.getElementById("edit_incentive").value : 0);
+  const lenc = numVal(document.getElementById("edit_leave_encashment") ? document.getElementById("edit_leave_encashment").value : 0);
+  const bon  = numVal(document.getElementById("edit_bonus").value);
+  const ed   = numVal(document.getElementById("edit_extra_day_earn") ? document.getElementById("edit_extra_day_earn").value : 0);
+  const ot   = numVal(document.getElementById("edit_ot") ? document.getElementById("edit_ot").value : 0);
+  const gross = Math.round(b + h + a + conv + wash + inc + lenc + bon + ed + ot);
 
   const pf  = numVal(document.getElementById("edit_pf").value);
   const esi = numVal(document.getElementById("edit_esi").value);
   const pt  = numVal(document.getElementById("edit_pt").value);
-  const ded = Math.round(pf + esi + pt);
+  const lwf = numVal(document.getElementById("edit_lwf") ? document.getElementById("edit_lwf").value : 0);
+  const ded = Math.round(pf + esi + pt + lwf);
 
   const net = gross - ded;
 
@@ -646,22 +687,31 @@ function saveEmployeeChanges() {
   setRecordField(rec, "extra_day_att", document.getElementById("edit_extra_day_att").value);
   setRecordField(rec, "ot_hours", document.getElementById("edit_ot_hours").value);
 
-  const b = Math.round(numVal(document.getElementById("edit_basic").value));
-  const h = Math.round(numVal(document.getElementById("edit_hra").value));
-  const a = Math.round(numVal(document.getElementById("edit_add_allowance").value));
-  const bon = Math.round(numVal(document.getElementById("edit_bonus").value));
-  const ed = Math.round(numVal(document.getElementById("edit_extra_day_earn").value));
-  const ot = Math.round(numVal(document.getElementById("edit_ot").value));
-  const gross = b + h + a + bon + ed + ot;
+  const b    = Math.round(numVal(document.getElementById("edit_basic").value));
+  const h    = Math.round(numVal(document.getElementById("edit_hra").value));
+  const a    = Math.round(numVal(document.getElementById("edit_add_allowance").value));
+  const conv = Math.round(numVal(document.getElementById("edit_conveyance") ? document.getElementById("edit_conveyance").value : 0));
+  const wash = Math.round(numVal(document.getElementById("edit_washing") ? document.getElementById("edit_washing").value : 0));
+  const inc  = Math.round(numVal(document.getElementById("edit_incentive") ? document.getElementById("edit_incentive").value : 0));
+  const lenc = Math.round(numVal(document.getElementById("edit_leave_encashment") ? document.getElementById("edit_leave_encashment").value : 0));
+  const bon  = Math.round(numVal(document.getElementById("edit_bonus").value));
+  const ed   = Math.round(numVal(document.getElementById("edit_extra_day_earn").value));
+  const ot   = Math.round(numVal(document.getElementById("edit_ot").value));
+  const gross = b + h + a + conv + wash + inc + lenc + bon + ed + ot;
 
+  setRecordField(rec, "conveyance", conv);
+  setRecordField(rec, "washing", wash);
+  setRecordField(rec, "incentive", inc);
+  setRecordField(rec, "leave_encashment", lenc);
   setRecordField(rec, "extra_day_earn", ed);
   setRecordField(rec, "extra_day", ed);
   setRecordField(rec, "ot", ot);
 
-  const pf = Math.round(numVal(document.getElementById("edit_pf").value));
+  const pf  = Math.round(numVal(document.getElementById("edit_pf").value));
   const esi = Math.round(numVal(document.getElementById("edit_esi").value));
-  const pt = Math.round(numVal(document.getElementById("edit_pt").value));
-  const ded = pf + esi + pt;
+  const pt  = Math.round(numVal(document.getElementById("edit_pt").value));
+  const lwf = Math.round(numVal(document.getElementById("edit_lwf") ? document.getElementById("edit_lwf").value : 0));
+  const ded = pf + esi + pt + lwf;
   const net = gross - ded;
 
   setRecordField(rec, "basic_entitled", b);
@@ -676,8 +726,11 @@ function saveEmployeeChanges() {
   setRecordField(rec, "pf", pf);
   setRecordField(rec, "esi", esi);
   setRecordField(rec, "prof_tax", pt);
+  setRecordField(rec, "lwf", lwf);
   setRecordField(rec, "gross_deduction", ded);
   setRecordField(rec, "net_amount", net);
+  rec["_calc_gross"] = gross.toLocaleString("en-IN") + ".00";
+  rec["_calc_net"] = net.toLocaleString("en-IN") + ".00";
 
   if (rowIndex === -1) {
     _records.push(rec);
@@ -840,6 +893,9 @@ async function showEmployeePreview(idx) {
 
   try {
     const currentMapping = getCurrentMapping();
+    const siteInput = document.getElementById("siteLocationInput");
+    const activeLoc = (siteInput && siteInput.value.trim()) ? siteInput.value.trim().toUpperCase() : _location;
+
     const response = await fetch("/preview-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -849,7 +905,7 @@ async function showEmployeePreview(idx) {
         month: _month,
         company: _company,
         address: _address,
-        location: _location
+        location: activeLoc
       })
     });
 
@@ -885,6 +941,9 @@ async function showEmployeePreview(idx) {
 
 function submitGenerateForm(employeeIndex) {
   const currentMapping = getCurrentMapping();
+  const siteInput = document.getElementById("siteLocationInput");
+  const activeLoc = (siteInput && siteInput.value.trim()) ? siteInput.value.trim().toUpperCase() : _location;
+
   const form = document.createElement("form");
   form.method = "POST";
   form.action = "/generate";
@@ -896,7 +955,7 @@ function submitGenerateForm(employeeIndex) {
     month: _month,
     company: _company,
     address: _address,
-    location: _location,
+    location: activeLoc,
     employee_index: String(employeeIndex)
   };
 
