@@ -145,13 +145,8 @@ FIELDS = [
 # ─── Multi-Company Registry ────────────────────────────────────────────────────
 # Add / edit companies here. Keys are used as internal IDs in the UI.
 COMPANIES = {
-    "adidev_goa": {
-        "name": "ADIDEV WAREHOUSE - GOA",
-        "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
-        "logo": "logo.png",
-    },
-    "adidev_baroda": {
-        "name": "ADIDEV WAREHOUSE - BARODA",
+    "yayath": {
+        "name": "YAYATH BUILDTECH",
         "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
         "logo": "logo.png",
     },
@@ -160,21 +155,11 @@ COMPANIES = {
         "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
         "logo": "logo.png",
     },
-    "yayath": {
-        "name": "YAYATH BUILDTECH",
-        "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
-        "logo": "logo.png",
-    },
     "shrikrishna": {
         "name": "SHRI KRISHNA WAREHOUSE",
         "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
         "logo": "logo.png",
     },
-    "custom": {
-        "name": "CUSTOM SITE / COMPANY",
-        "address": "Site Office Address",
-        "logo": "logo.png",
-    }
 }
 DEFAULT_COMPANY_KEY  = "yayath"
 DEFAULT_COMPANY = COMPANIES[DEFAULT_COMPANY_KEY]["name"]
@@ -841,11 +826,7 @@ def index():
         # Compute summary metrics for preview banner
         total_employees = len(records)
         month = request.form.get("month") or datetime.now().strftime("%B, %Y")
-        company = request.form.get("company")
-        if (not company or company == DEFAULT_COMPANY) and detected_site_name:
-            company = detected_site_name
-        elif not company:
-            company = DEFAULT_COMPANY
+        company = request.form.get("company") or DEFAULT_COMPANY
         address = request.form.get("address") or DEFAULT_ADDRESS
 
         # Calculate quick summary aggregates

@@ -316,6 +316,14 @@
           <label class="form-label">WOFF (Week Off)</label>
           <input type="number" id="edit_woff" class="form-control" value="4">
         </div>
+        <div class="form-group">
+          <label class="form-label">Extra Days (Count)</label>
+          <input type="number" step="any" id="edit_extra_day_att" class="form-control" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">OT (Hours / Days)</label>
+          <input type="number" step="any" id="edit_ot_hours" class="form-control" value="0">
+        </div>
 
         <!-- 3. Earnings -->
         <div class="edit-section-title">3. Salary &amp; Earnings (₹)</div>
@@ -334,6 +342,14 @@
         <div class="form-group">
           <label class="form-label">Bonus</label>
           <input type="number" step="any" id="edit_bonus" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Extra Day Pay (₹)</label>
+          <input type="number" step="any" id="edit_extra_day_earn" class="form-control calc-trigger" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">OT Amount (₹)</label>
+          <input type="number" step="any" id="edit_ot" class="form-control calc-trigger" value="0">
         </div>
 
         <!-- 4. Deductions -->
@@ -500,11 +516,15 @@ function openEditModal(rowIndex) {
   document.getElementById("edit_lwp").value          = getRecordField(rec, "lwp", "0");
   document.getElementById("edit_nh").value           = getRecordField(rec, "nh", "0");
   document.getElementById("edit_woff").value         = getRecordField(rec, "woff", "4");
+  document.getElementById("edit_extra_day_att").value= getRecordField(rec, "extra_day_att", getRecordField(rec, "extra_day", "0"));
+  document.getElementById("edit_ot_hours").value     = getRecordField(rec, "ot_hours", "0");
 
   document.getElementById("edit_basic").value        = Math.round(numVal(getRecordField(rec, "basic_entitled")));
   document.getElementById("edit_hra").value          = Math.round(numVal(getRecordField(rec, "hra_entitled")));
   document.getElementById("edit_add_allowance").value= Math.round(numVal(getRecordField(rec, "add_allowance", "0")));
   document.getElementById("edit_bonus").value        = Math.round(numVal(getRecordField(rec, "bonus_entitled", "0")));
+  document.getElementById("edit_extra_day_earn").value = Math.round(numVal(getRecordField(rec, "extra_day_earn", getRecordField(rec, "extra_day", "0"))));
+  document.getElementById("edit_ot").value             = Math.round(numVal(getRecordField(rec, "ot", "0")));
 
   document.getElementById("edit_pf").value           = Math.round(numVal(getRecordField(rec, "pf", "0")));
   document.getElementById("edit_esi").value          = Math.round(numVal(getRecordField(rec, "esi", "0")));
@@ -540,11 +560,15 @@ function openAddModal() {
   document.getElementById("edit_lwp").value          = 0;
   document.getElementById("edit_nh").value           = 0;
   document.getElementById("edit_woff").value         = 4;
+  document.getElementById("edit_extra_day_att").value= 0;
+  document.getElementById("edit_ot_hours").value     = 0;
 
   document.getElementById("edit_basic").value        = 0;
   document.getElementById("edit_hra").value          = 0;
   document.getElementById("edit_add_allowance").value= 0;
   document.getElementById("edit_bonus").value        = 0;
+  document.getElementById("edit_extra_day_earn").value = 0;
+  document.getElementById("edit_ot").value             = 0;
 
   document.getElementById("edit_pf").value           = 0;
   document.getElementById("edit_esi").value          = 0;
@@ -563,7 +587,9 @@ function recalculateModalFinancials() {
   const h   = numVal(document.getElementById("edit_hra").value);
   const a   = numVal(document.getElementById("edit_add_allowance").value);
   const bon = numVal(document.getElementById("edit_bonus").value);
-  const gross = Math.round(b + h + a + bon);
+  const ed  = numVal(document.getElementById("edit_extra_day_earn") ? document.getElementById("edit_extra_day_earn").value : 0);
+  const ot  = numVal(document.getElementById("edit_ot") ? document.getElementById("edit_ot").value : 0);
+  const gross = Math.round(b + h + a + bon + ed + ot);
 
   const pf  = numVal(document.getElementById("edit_pf").value);
   const esi = numVal(document.getElementById("edit_esi").value);
@@ -612,12 +638,20 @@ function saveEmployeeChanges() {
   setRecordField(rec, "lwp", document.getElementById("edit_lwp").value);
   setRecordField(rec, "nh", document.getElementById("edit_nh").value);
   setRecordField(rec, "woff", document.getElementById("edit_woff").value);
+  setRecordField(rec, "extra_day_att", document.getElementById("edit_extra_day_att").value);
+  setRecordField(rec, "ot_hours", document.getElementById("edit_ot_hours").value);
 
   const b = Math.round(numVal(document.getElementById("edit_basic").value));
   const h = Math.round(numVal(document.getElementById("edit_hra").value));
   const a = Math.round(numVal(document.getElementById("edit_add_allowance").value));
   const bon = Math.round(numVal(document.getElementById("edit_bonus").value));
-  const gross = b + h + a + bon;
+  const ed = Math.round(numVal(document.getElementById("edit_extra_day_earn").value));
+  const ot = Math.round(numVal(document.getElementById("edit_ot").value));
+  const gross = b + h + a + bon + ed + ot;
+
+  setRecordField(rec, "extra_day_earn", ed);
+  setRecordField(rec, "extra_day", ed);
+  setRecordField(rec, "ot", ot);
 
   const pf = Math.round(numVal(document.getElementById("edit_pf").value));
   const esi = Math.round(numVal(document.getElementById("edit_esi").value));
