@@ -182,6 +182,42 @@ def num(v):
     except Exception:
         return 0.0
 
+def detect_location(banner_text: str = "", filename: str = "") -> str:
+    """Auto-detect site / location from uploaded file banner or filename."""
+    CITIES = [
+        "GOA", "RAJKOT", "BARODA", "VADODARA", "SURAT", "AHMEDABAD",
+        "GURUGRAM", "GURGAON", "NOIDA", "MUMBAI", "PUNE", "DELHI",
+        "JAIPUR", "INDORE", "BENGALURU", "BANGALORE", "HYDERABAD", "CHENNAI", "KOLKATA"
+    ]
+    # 1. From banner text (e.g. "Adidev - Goa")
+    if banner_text:
+        bt_upper = str(banner_text).upper()
+        if "-" in bt_upper:
+            parts = [p.strip() for p in bt_upper.split("-") if p.strip()]
+            if len(parts) > 1:
+                clean_cand = re.sub(r"\b(WAGE|SHEET|WAGESS|OCT|NOV|DEC|JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|\d+)\b", "", parts[-1]).strip()
+                if clean_cand:
+                    return "BARODA" if clean_cand == "VADODARA" else clean_cand
+        for city in CITIES:
+            if re.search(rf"\b{city}\b", bt_upper):
+                return "BARODA" if city == "VADODARA" else city
+
+    # 2. From filename (e.g. "GOA_-_WAGE_SHEET_-_Oct_26.xlsx")
+    fn_upper = os.path.basename(str(filename)).upper()
+    for city in CITIES:
+        if re.search(rf"\b{city}\b", fn_upper) or city in fn_upper:
+            return "BARODA" if city == "VADODARA" else city
+
+    # 3. Clean banner fallback
+    if banner_text:
+        clean_b = re.sub(r"[^A-Za-z0-9\s-]", " ", str(banner_text)).strip()
+        if clean_b:
+            last = clean_b.split()[-1].upper()
+            if len(last) >= 3 and not any(k in last for k in ["WAGE", "SHEET", "DATA"]):
+                return last
+
+    return ""
+
 def money(v):
     val = round(num(v))
     return f"{val:,.2f}"
@@ -354,7 +390,7 @@ def calculate_row_financials(row, mapping):
         "net": net
     }
 
-def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDRESS):
+def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDRESS, location=""):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -521,9 +557,12 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
         ("Leave Bal.",    getval(row, mapping, "leave_bal")),
         ("ESI No.",       getval(row, mapping, "esi_no", "N/A")),
     ]
+    emp_loc = (getval(row, mapping, "location") or location or "").strip()
+    emp_unit = (getval(row, mapping, "unit") or emp_loc).strip()
+
     right_fields = [
-        ("Location",         getval(row, mapping, "location") or "BARODA"),
-        ("Unit",             getval(row, mapping, "unit") or "BARODA"),
+        ("Location",         emp_loc or "Site Office"),
+        ("Unit",             emp_unit or "Site Office"),
         ("Joining Date",     getval(row, mapping, "joining_date") or ""),
         ("Paid days",        f"{float(paid_d):.2f}" if paid_d and str(paid_d).replace('.', '', 1).isdigit() else paid_d),
         ("Bank Account No.", getval(row, mapping, "bank", "N/A")),
@@ -855,6 +894,9 @@ def index():
         month = request.form.get("month") or datetime.now().strftime("%B, %Y")
         company = request.form.get("company") or DEFAULT_COMPANY
         address = request.form.get("address") or DEFAULT_ADDRESS
+        form_location = request.form.get("location", "").strip()
+        detected_loc = form_location or detect_location(detected_site_name, f.filename)
+        location = detected_loc.upper() if detected_loc else ""
 
         # Calculate quick summary aggregates
         total_payout = 0.0
@@ -872,7 +914,8 @@ def index():
             "total_gross": f"{total_gross:,.2f}",
             "total_ded": f"{total_ded:,.2f}",
             "mapped_count": len([k for k, v in mapping.items() if v in columns]),
-            "total_fields": len(FIELDS)
+            "total_fields": len(FIELDS),
+            "location": location
         }
 
         # Build a single JSON blob for safe embedding in a <script> tag
@@ -882,7 +925,8 @@ def index():
             "mapping": mapping,
             "month": month,
             "company": company,
-            "address": address
+            "address": address,
+            "location": location
         }, ensure_ascii=False)
 
         return render_template(
@@ -895,6 +939,7 @@ def index():
             month=month,
             company=company,
             address=address,
+            location=location,
             payroll_data_json=payroll_data_json
         )
 
@@ -920,9 +965,10 @@ def preview_pdf():
         month = data.get("month", "") or datetime.now().strftime("%B, %Y")
         company = data.get("company", DEFAULT_COMPANY)
         address = data.get("address", DEFAULT_ADDRESS)
+        location = data.get("location", "").strip()
 
         row = pd.Series(row_dict)
-        pdf_bytes = build_pdf(row, mapping, month, company, address)
+        pdf_bytes = build_pdf(row, mapping, month, company, address, location=location)
 
         name = getval(row, mapping, "name") or "Employee"
         code = getval(row, mapping, "code") or "001"
@@ -949,6 +995,7 @@ def generate():
     month = request.form.get("month", "").strip() or datetime.now().strftime("%B, %Y")
     company = request.form.get("company", DEFAULT_COMPANY).strip() or DEFAULT_COMPANY
     address = request.form.get("address", DEFAULT_ADDRESS).strip() or DEFAULT_ADDRESS
+    location = request.form.get("location", "").strip()
     selected = request.form.get("employee_index", "all")
 
     rows = list(enumerate(records))
@@ -969,7 +1016,7 @@ def generate():
         code = getval(row, mapping, "code") or str(idx + 1)
         name = getval(row, mapping, "name") or f"Employee_{idx + 1}"
         safe = re.sub(r"[^A-Za-z0-9_-]+", "_", f"{name}_{code}").strip("_")
-        pdf = build_pdf(row, mapping, month, company, address)
+        pdf = build_pdf(row, mapping, month, company, address, location=location)
         outputs.append((f"{safe}.pdf", pdf))
 
     # Single employee download

@@ -199,6 +199,10 @@
       <span class="batch-stat-label">Selected Company</span>
       <span class="batch-stat-val" style="font-size: 1rem;">{{ company }}</span>
     </div>
+    <div class="batch-stat" style="border-left: 1px solid var(--border-subtle); padding-left: 1.25rem;">
+      <span class="batch-stat-label">Site / Location</span>
+      <input type="text" id="siteLocationInput" class="form-control form-control-sm" style="max-width: 150px; font-weight: 700; text-transform: uppercase; padding: 0.2rem 0.5rem; font-size: 0.9rem;" value="{{ location }}" placeholder="e.g. GOA">
+    </div>
   </div>
 
   <div class="batch-btns">
@@ -259,11 +263,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">Location</label>
-          <input type="text" id="edit_location" class="form-control" placeholder="BARODA">
+          <input type="text" id="edit_location" class="form-control" placeholder="e.g. Goa, Rajkot, Baroda">
         </div>
         <div class="form-group">
           <label class="form-label">Unit</label>
-          <input type="text" id="edit_unit" class="form-control" placeholder="BARODA">
+          <input type="text" id="edit_unit" class="form-control" placeholder="e.g. Goa, Rajkot, Baroda">
         </div>
         <div class="form-group">
           <label class="form-label">Joining Date</label>
@@ -442,6 +446,7 @@ let _mapping = _payrollData.mapping || {};
 const _month = _payrollData.month || "";
 const _company = _payrollData.company || "";
 const _address = _payrollData.address || "";
+let _location = _payrollData.location || "{{ location }}" || "";
 
 function numVal(v) {
   if (v === undefined || v === null) return 0;
@@ -501,8 +506,8 @@ function openEditModal(rowIndex) {
   document.getElementById("edit_code").value         = getRecordField(rec, "code");
   document.getElementById("edit_designation").value  = getRecordField(rec, "designation");
   document.getElementById("edit_department").value   = getRecordField(rec, "department", "OPERATION");
-  document.getElementById("edit_location").value     = getRecordField(rec, "location", "BARODA");
-  document.getElementById("edit_unit").value         = getRecordField(rec, "unit", "BARODA");
+  document.getElementById("edit_location").value     = getRecordField(rec, "location", _location || "Site Office");
+  document.getElementById("edit_unit").value         = getRecordField(rec, "unit", _location || "Site Office");
   document.getElementById("edit_joining_date").value = getRecordField(rec, "joining_date");
   document.getElementById("edit_pan").value          = getRecordField(rec, "pan");
   document.getElementById("edit_bank").value         = getRecordField(rec, "bank", "N/A");
@@ -545,8 +550,8 @@ function openAddModal() {
   document.getElementById("edit_code").value         = `EMP${String(_records.length + 1).padStart(3, "0")}`;
   document.getElementById("edit_designation").value  = "Staff";
   document.getElementById("edit_department").value   = "OPERATION";
-  document.getElementById("edit_location").value     = "BARODA";
-  document.getElementById("edit_unit").value         = "BARODA";
+  document.getElementById("edit_location").value     = _location || "Site Office";
+  document.getElementById("edit_unit").value         = _location || "Site Office";
   document.getElementById("edit_joining_date").value = "";
   document.getElementById("edit_pan").value          = "";
   document.getElementById("edit_bank").value         = "N/A";
@@ -843,7 +848,8 @@ async function showEmployeePreview(idx) {
         mapping: currentMapping,
         month: _month,
         company: _company,
-        address: _address
+        address: _address,
+        location: _location
       })
     });
 
@@ -890,6 +896,7 @@ function submitGenerateForm(employeeIndex) {
     month: _month,
     company: _company,
     address: _address,
+    location: _location,
     employee_index: String(employeeIndex)
   };
 
@@ -923,6 +930,13 @@ function getCurrentMapping() {
 // Initial setup on DOM ready
 document.addEventListener("DOMContentLoaded", () => {
   bindRowActionButtons();
+
+  const siteLocInput = document.getElementById("siteLocationInput");
+  if (siteLocInput) {
+    siteLocInput.addEventListener("input", (e) => {
+      _location = e.target.value.trim().toUpperCase();
+    });
+  }
 
   const downloadAllBtn = document.getElementById("downloadAllBtn");
   if (downloadAllBtn) {
