@@ -5,6 +5,12 @@
       "source": "/(.*)",
       "destination": "/api/index"
     }
-  ]
+  ],
+  "env": {
+    "SECRET_KEY": "yayath-payroll-super-secret-key-2026-XkQ9",
+    "AUTH_USER": "HR123",
+    "AUTH_PASS": "HR123#",
+    "VERCEL": "1"
+  }
 }
 

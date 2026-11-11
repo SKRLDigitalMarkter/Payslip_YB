@@ -4,8 +4,10 @@ import re
 import json
 import zipfile
 import tempfile
-from datetime import datetime
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, Response, session
+from datetime import datetime, timedelta, timezone
+from functools import wraps
+import jwt as pyjwt
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, Response, make_response
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether, Image as RLImage
@@ -22,7 +24,58 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, "static"),
     static_url_path="/static"
 )
-app.secret_key = os.environ.get("SECRET_KEY", "yayath-payroll-secret-key-2026")
+
+# ─── JWT Auth Configuration ───────────────────────────────────────────────────
+JWT_SECRET     = os.environ.get("SECRET_KEY", "yayath-payroll-super-secret-key-2026-XkQ9")
+JWT_ALGORITHM  = "HS256"
+JWT_EXPIRY_HRS = 8          # Token valid for 8 hours
+JWT_COOKIE     = "yb_auth"  # HttpOnly cookie name
+
+AUTH_USER = os.environ.get("AUTH_USER", "HR123")
+AUTH_PASS = os.environ.get("AUTH_PASS", "HR123#")
+IS_VERCEL = os.environ.get("VERCEL", "0") == "1"
+
+def _make_jwt(user_id: str) -> str:
+    """Create a signed JWT token that expires in JWT_EXPIRY_HRS hours."""
+    payload = {
+        "sub": user_id,
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HRS),
+    }
+    return pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def _verify_jwt(token: str):
+    """Verify token and return payload dict, or None if invalid/expired."""
+    try:
+        return pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except pyjwt.ExpiredSignatureError:
+        return None
+    except pyjwt.InvalidTokenError:
+        return None
+
+def login_required(f):
+    """Decorator: protects a route with JWT cookie auth."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.cookies.get(JWT_COOKIE)
+        if not token or not _verify_jwt(token):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+def get_current_user() -> str | None:
+    """Return logged-in user ID from JWT cookie, or None."""
+    token = request.cookies.get(JWT_COOKIE)
+    if not token:
+        return None
+    payload = _verify_jwt(token)
+    return payload.get("sub") if payload else None
+
+@app.context_processor
+def inject_auth():
+    """Make current_user available in every template automatically."""
+    return {"current_user": get_current_user()}
+
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), "uploads")
 try:
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -570,19 +623,10 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
     buf.seek(0)
     return buf.getvalue()
 
-AUTH_USER = os.environ.get("AUTH_USER", "HR123")
-AUTH_PASS = os.environ.get("AUTH_PASS", "HR123#")
-
-@app.before_request
-def require_login():
-    allowed_endpoints = {"login", "static"}
-    if request.endpoint and request.endpoint not in allowed_endpoints:
-        if not session.get("logged_in"):
-            return redirect(url_for("login"))
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if session.get("logged_in"):
+    # Already logged in? Go home
+    if get_current_user():
         return redirect(url_for("index"))
 
     error = None
@@ -591,9 +635,18 @@ def login():
         pwd = request.form.get("password", "").strip()
 
         if uid == AUTH_USER and pwd == AUTH_PASS:
-            session["logged_in"] = True
-            session["user"] = uid
-            return redirect(url_for("index"))
+            token = _make_jwt(uid)
+            resp = make_response(redirect(url_for("index")))
+            resp.set_cookie(
+                JWT_COOKIE,
+                token,
+                httponly=True,
+                samesite="Lax",
+                secure=IS_VERCEL,
+                max_age=JWT_EXPIRY_HRS * 3600,
+                path="/"
+            )
+            return resp
         else:
             error = "Invalid User ID or Password. Please try again."
 
@@ -601,10 +654,12 @@ def login():
 
 @app.route("/logout")
 def logout():
-    session.clear()
-    return redirect(url_for("login"))
+    resp = make_response(redirect(url_for("login")))
+    resp.delete_cookie(JWT_COOKIE, path="/")
+    return resp
 
 @app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
     if request.method == "POST":
         f = request.files.get("file")
@@ -744,6 +799,7 @@ def index():
     )
 
 @app.route("/preview-pdf", methods=["POST"])
+@login_required
 def preview_pdf():
     """Generates a single employee PDF and returns it inline for modal iframe viewing."""
     try:
@@ -770,6 +826,7 @@ def preview_pdf():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/generate", methods=["POST"])
+@login_required
 def generate():
     try:
         records = json.loads(request.form["records"])
@@ -830,6 +887,7 @@ def generate():
     )
 
 @app.route("/download-sample", methods=["GET"])
+@login_required
 def download_sample():
     """Generates and serves a realistic pre-filled sample Excel spreadsheet for instant testing."""
     sample_data = [
