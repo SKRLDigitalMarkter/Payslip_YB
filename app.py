@@ -86,68 +86,95 @@ ALLOWED = {".xlsx", ".xls", ".csv"}
 # Comprehensive field specifications with fuzzy matching aliases
 FIELDS = [
     # ── Identity ──────────────────────────────────────────────────────────────
-    ("name",        "Employee Name",         ["empname", "emp name", "employee name", "employee_name", "name", "full name", "staff name", "worker name"]),
-    ("code",        "Employee Code",         ["empcode", "emp code", "employee code", "employee_code", "emp_code", "code", "employee id", "emp id", "id", "staff no", "badge no"]),
-    ("designation", "Designation",           ["designation", "role", "position", "title", "post", "job title"]),
-    ("department",  "Department",            ["department", "dept", "department name", "dept name", "section"]),
-    ("pan",         "PAN",                   ["pan", "pan number", "pan_no", "pan card", "panno", "pan no."]),
-    ("joining_date","Joining Date",          ["joining date", "joining_date", "date of joining", "doj", "date_of_joining"]),
-    ("location",    "Location",              ["location", "city", "work location", "site", "project site", "branch location"]),
-    ("unit",        "Unit",                  ["unit", "branch", "business unit", "division"]),
-    # ── Attendance ────────────────────────────────────────────────────────────
-    ("total_days",  "Total Days",            ["totaldays", "total days", "total_days", "working days in month", "calendar days"]),
-    ("paid_days",   "Paid Days",             ["paiddays", "paid days", "paid_days", "payable days", "net paid days"]),
-    ("lwp",         "Leave Without Pay",     ["leave without pay", "lwp", "lop", "loss of pay", "unpaid", "absent", "leave_without_pay"]),
-    ("present",     "Present Days",          ["present", "present days", "days worked", "total present"]),
-    ("nh",          "NH",                    ["nh", "national holiday", "holidays", "festival holiday"]),
-    ("woff",        "WOFF",                  ["woff", "weekly off", "weekly_off", "off days", "wo", "week off"]),
+    ("name",            "Employee Name",         ["empname", "emp name", "employee name", "employee_name", "name", "full name", "staff name", "worker name"]),
+    ("code",            "Employee Code",         ["empcode", "emp code", "employee code", "employee_code", "emp_code", "code", "employee id", "emp id", "id", "staff no", "badge no"]),
+    ("designation",     "Designation",           ["designation", "role", "position", "title", "post", "job title"]),
+    ("department",      "Department",            ["department", "dept", "department name", "dept name", "section"]),
+    ("pan",             "PAN",                   ["pan", "pan number", "pan_no", "pan card", "panno", "pan no."]),
+    ("joining_date",    "Joining Date",          ["joining date", "joining_date", "date of joining", "doj", "date_of_joining"]),
+    ("location",        "Location / Site",       ["location", "city", "work location", "site", "project site", "branch location", "project"]),
+    ("unit",            "Unit",                  ["unit", "branch", "business unit", "division"]),
+    ("cost_center",     "Cost Center",           ["cost center", "cost_center", "cc"]),
+
     # ── Employee IDs ─────────────────────────────────────────────────────────
-    ("bank",        "Bank Account No.",      ["bank account no", "bank account", "bank_account", "account number", "a/c no", "account_no", "bank a/c", "acc no"]),
-    ("pf_no",       "PF No.",               ["pf_no", "pf no", "pf number", "uan", "pf uan", "provident fund no", "uan no", "pf a/c"]),
-    ("esi_no",      "ESI No.",              ["esi no", "esi no.", "esi number", "esi_no", "insurance no", "esic no", "ip number", "esic"]),
-    ("leave_bal",   "Leave Balance",         ["leave bal", "leave balance", "leave_bal", "leaves", "balance leaves", "cl", "pl", "bal leaves"]),
-    ("cost_center", "Cost Center",           ["cost center", "cost_center", "project", "cc"]),
+    ("bank",            "Bank Account No.",      ["bank account no", "bank account", "bank_account", "account number", "a/c no", "account_no", "bank a/c", "acc no"]),
+    ("pf_no",           "PF No. / UAN",          ["pf_no", "pf no", "pf number", "uan", "pf uan", "provident fund no", "uan no", "pf a/c"]),
+    ("esi_no",          "ESI No.",               ["esi no", "esi no.", "esi number", "esi_no", "insurance no", "esic no", "ip number", "esic"]),
+    ("leave_bal",       "Leave Balance",         ["leave bal", "leave balance", "leave_bal", "leaves", "balance leaves", "cl", "pl", "bal leaves"]),
+
+    # ── Attendance ────────────────────────────────────────────────────────────
+    ("total_days",      "Total Days",            ["totaldays", "total days", "total_days", "working days in month", "calendar days", "days"]),
+    ("paid_days",       "Paid Days",             ["paiddays", "paid days", "paid_days", "payable days", "net paid days"]),
+    ("lwp",             "Leave Without Pay",     ["leave without pay", "lwp", "lop", "loss of pay", "unpaid", "absent", "leave_without_pay"]),
+    ("present",         "Present Days",          ["present", "present days", "days worked", "total present"]),
+    ("nh",              "NH",                    ["nh", "national holiday", "holidays", "festival holiday"]),
+    ("woff",            "WOFF",                  ["woff", "weekly off", "weekly_off", "off days", "wo", "week off"]),
+    ("extra_day_att",   "Extra Days (Att)",      ["exra day", "extra day", "extra days", "2 oct - extra pay", "extra pay day", "ed days", "holiday day", "extra working day", "exra days"]),
+    ("ot_hours",        "OT Hours / Days",       ["ot hours", "ot hrs", "ot days", "ot day", "overtime hours", "overtime days"]),
+
     # ── Earnings ─────────────────────────────────────────────────────────────
-    ("basic_entitled",  "Basic Entitled",    ["basic da", "basic +da", "basic+da", "basic", "basic salary", "entitled basic", "basic pay", "basic rate", "basic entitled"]),
-    ("basic_earned",    "Basic Earned",      ["basic earned", "earned basic", "basic pay earned"]),
-    ("basic_arrears",   "Basic Arrears",     ["basic arrears", "arrears basic", "basic arrear"]),
-    ("hra_entitled",    "HRA Entitled",      ["hra", "house rent allowance", "hra rate", "hra entitled"]),
-    ("hra_earned",      "HRA Earned",        ["hra earned", "earned hra"]),
-    ("hra_arrears",     "HRA Arrears",       ["hra arrears", "arrears hra"]),
-    ("add_allowance",   "Additional Allowance", ["additional allowance", "additional_allowance", "add allowance", "addl allowance", "allowance", "other allowance", "special allowance"]),
-    ("bonus_entitled",  "Bonus Entitled",    ["bonus", "statutory bonus", "bonus entitled", "bonus rate", "incentive"]),
-    ("bonus_earned",    "Bonus Earned",      ["bonus earned", "earned bonus"]),
-    ("bonus_arrears",   "Bonus Arrears",     ["bonus arrears", "arrears bonus"]),
-    ("ot",             "OT / Overtime",        ["ot", "ot amount", "overtime", "overtime amount", "ot pay", "over time", "overtime pay", "ot wages", "ot days", "ot hours", "ot hrs", "ot day"]),
-    ("extra_day",      "Extra Day",            ["extra day", "extra_day", "extra days", "extra day amount", "extra day pay", "extra days pay", "holiday pay", "extra working day", "ed", "ed amount", "extra day wages", "ed days"]),
+    ("basic_entitled",  "Basic Entitled",        ["basic da", "basic +da", "basic+da", "basic", "basic salary", "entitled basic", "basic pay", "basic rate", "basic entitled", "basic + da"]),
+    ("basic_earned",    "Basic Earned",          ["basic earned", "earned basic", "basic pay earned"]),
+    ("basic_arrears",   "Basic Arrears",         ["basic arrears", "arrears basic", "basic arrear"]),
+    ("hra_entitled",    "HRA Entitled",          ["hra", "house rent allowance", "hra rate", "hra entitled"]),
+    ("hra_earned",      "HRA Earned",            ["hra earned", "earned hra"]),
+    ("hra_arrears",     "HRA Arrears",           ["hra arrears", "arrears hra"]),
+    ("add_allowance",   "Additional Allowance",  ["additional allowance", "additional_allowance", "add allowance", "addl allowance", "special allowance", "other allowance"]),
+    ("conveyance",      "Conveyance Allowance",  ["local conveyance", "conveyance", "conveyance allowance", "transport allowance", "travel allowance", "ta"]),
+    ("washing",         "Washing Allowance",     ["washing allowance", "washing", "uniform allowance", "dress allowance"]),
+    ("leave_encashment","Leave Encashment",      ["attendance leave encashment", "leave encashment", "leave encash", "encashment", "el encashment", "pl encashment", "leave pay"]),
+    ("incentive",       "Incentive / Festival",  ["navratri festival incentive", "festival incentive", "incentive", "performance incentive", "diwali incentive", "special incentive", "attendance incentive", "festival bonus"]),
+    ("extra_day_earn",  "Extra Day Pay",         ["exra day .1", "exra day.1", "extra day .1", "extra day.1", "2 oct - extra pay .1", "2 oct - extra pay.1", "extra day amount", "extra day pay", "extra days pay", "ed amount", "extra pay"]),
+    ("ot",              "OT Amount",             ["ot", "ot amount", "overtime", "overtime amount", "ot pay", "over time", "overtime pay", "ot wages"]),
+    ("bonus_entitled",  "Bonus Entitled",        ["bonus", "statutory bonus", "bonus entitled", "bonus rate"]),
+    ("bonus_earned",    "Bonus Earned",          ["bonus earned", "earned bonus"]),
+    ("bonus_arrears",   "Bonus Arrears",         ["bonus arrears", "arrears bonus"]),
+
     # ── Deductions ───────────────────────────────────────────────────────────
-    ("pf",          "PF Deduction",          ["pf", "pf ", "pf deduction", "pf amount", "provident fund", "epf", "pf ee", "pf employee"]),
-    ("esi",         "ESI Deduction",         ["esi basic da", "esi basic", "esi", "esi deduction", "esi amount", "esic ee", "esi employee"]),
-    ("prof_tax",    "Professional Tax",      ["proftax", "prof tax", "professional tax", "pt", "p tax", "ptax"]),
+    ("pf",              "PF Deduction",          ["pf", "pf ", "pf deduction", "pf amount", "provident fund", "epf", "pf ee", "pf employee"]),
+    ("esi",             "ESI Deduction",         ["esi basic da", "esi basic", "esi", "esi deduction", "esi amount", "esic ee", "esi employee", "esi (basic +da)", "esi (basic+da)"]),
+    ("prof_tax",        "Professional Tax",      ["proftax", "prof tax", "professional tax", "pt", "p tax", "ptax"]),
+    ("lwf",             "Labour Welfare Fund",   ["lwf- em", "lwf - em", "lwf-em", "lwf employee", "lwf ded", "labour welfare fund", "lwf", "lwf em"]),
+
     # ── Totals (optional) ────────────────────────────────────────────────────
-    ("gross_earning",   "Gross Earning",     ["gross", "gross earning", "gross earnings", "total earnings", "gross salary", "gross pay", "total gross"]),
-    ("gross_deduction", "Gross Deduction",   ["totded", "tot ded", " totded", "total deduction", "total deductions", "gross deduction", "deductions"]),
-    ("net_amount",      "Net Amount",        ["netsal", "net sal", "net salary", "net amount", "take home", "net pay", "in hand", "net payable", "net payout"]),
+    ("gross_earning",   "Gross Earning",         ["grosstotal", "gross total", "gross", "gross earning", "gross earnings", "total earnings", "gross salary", "gross pay"]),
+    ("gross_deduction", "Gross Deduction",       ["totded", "tot ded", " totded", "total deduction", "total deductions", "gross deduction", "deductions"]),
+    ("net_amount",      "Net Amount",            ["netsal", "net sal", "net salary", "net amount", "take home", "net pay", "in hand", "net payable"]),
 ]
 
 # ─── Multi-Company Registry ────────────────────────────────────────────────────
 # Add / edit companies here. Keys are used as internal IDs in the UI.
 COMPANIES = {
-    "yayath": {
-        "name": "YAYATH BUILDTECH",
+    "adidev_goa": {
+        "name": "ADIDEV WAREHOUSE - GOA",
         "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
-        "logo": "logo.png",           # file inside static/img/
+        "logo": "logo.png",
+    },
+    "adidev_baroda": {
+        "name": "ADIDEV WAREHOUSE - BARODA",
+        "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
+        "logo": "logo.png",
     },
     "adidev": {
         "name": "ADIDEV WAREHOUSE",
         "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
-        "logo": "logo_adidev.png",
+        "logo": "logo.png",
+    },
+    "yayath": {
+        "name": "YAYATH BUILDTECH",
+        "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
+        "logo": "logo.png",
     },
     "shrikrishna": {
         "name": "SHRI KRISHNA WAREHOUSE",
         "address": "UG-006, MGF Metropolis Mall, MG Road, Sector 28 Gurugram, Haryana 122009",
-        "logo": "logo_shrikrishna.png",
+        "logo": "logo.png",
     },
+    "custom": {
+        "name": "CUSTOM SITE / COMPANY",
+        "address": "Site Office Address",
+        "logo": "logo.png",
+    }
 }
 DEFAULT_COMPANY_KEY  = "yayath"
 DEFAULT_COMPANY = COMPANIES[DEFAULT_COMPANY_KEY]["name"]
@@ -204,8 +231,14 @@ def auto_mapping(columns):
         candidates = [norm(label)] + [norm(a) for a in aliases]
         for candidate in candidates:
             if candidate in normalized and normalized[candidate] not in mapped_cols:
-                mapping[key] = normalized[candidate]
-                mapped_cols.add(normalized[candidate])
+                norm_c = candidate
+                if any(w in norm_c for w in ["empr", "employer", "emr"]) and not any(w in key for w in ["empr", "employer", "emr"]):
+                    continue
+                if "ctc" in norm_c and not "ctc" in key:
+                    continue
+                orig_c = normalized[candidate]
+                mapping[key] = orig_c
+                mapped_cols.add(orig_c)
                 break
 
     # Pass 2: Fuzzy / substring matches for remaining unmapped fields
@@ -222,12 +255,13 @@ def auto_mapping(columns):
                     continue
                 if key == "name" and any(w in norm_c for w in ["bank", "company", "father", "husband"]):
                     continue
-                if "net" in key and "gross" in norm_c:
+                if "net" in key and ("gross" in norm_c or "ctc" in norm_c):
                     continue
-                if "gross" in key and "net" in norm_c:
+                if "gross" in key and ("net" in norm_c or "ctc" in norm_c):
                     continue
-                # Do not map employee deductions to employer contributions
                 if any(w in norm_c for w in ["empr", "employer", "emr"]) and not any(w in key for w in ["empr", "employer", "emr"]):
+                    continue
+                if "ctc" in norm_c and not "ctc" in key:
                     continue
                 if candidate in norm_c or norm_c in candidate:
                     mapping[key] = orig_c
@@ -256,29 +290,33 @@ def calculate_row_financials(row, mapping):
     h_earn = round(num(getval(row, mapping, "hra_earned"))) or h_ent
     h_arr  = round(num(getval(row, mapping, "hra_arrears")))
 
-    add_ent  = round(num(getval(row, mapping, "add_allowance")))
+    add_ent  = round(num(getval(row, mapping, "add_allowance", 0)))
     add_earn = add_ent
     add_arr  = 0.0
 
-    bon_ent  = round(num(getval(row, mapping, "bonus_entitled")))
-    bon_earn = round(num(getval(row, mapping, "bonus_earned"))) or bon_ent
-    bon_arr  = round(num(getval(row, mapping, "bonus_arrears")))
+    conv_earn      = round(num(getval(row, mapping, "conveyance", 0)))
+    wash_earn      = round(num(getval(row, mapping, "washing", 0)))
+    leave_enc_earn = round(num(getval(row, mapping, "leave_encashment", 0)))
+    incentive_earn = round(num(getval(row, mapping, "incentive", 0)))
+    extra_day_earn = round(num(getval(row, mapping, "extra_day_earn", getval(row, mapping, "extra_day", 0))))
+    ot_earn        = round(num(getval(row, mapping, "ot", 0)))
 
-    # OT and Extra Day: if no data / empty / NaN, strictly default to 0
-    ot_amt   = round(num(getval(row, mapping, "ot", 0)))
-    extra_day_amt = round(num(getval(row, mapping, "extra_day", 0)))
+    bon_ent  = round(num(getval(row, mapping, "bonus_entitled", 0)))
+    bon_earn = round(num(getval(row, mapping, "bonus_earned", 0))) or bon_ent
+    bon_arr  = round(num(getval(row, mapping, "bonus_arrears", 0)))
 
     # Deductions: Employee deductions only!
-    pf_ded   = round(num(getval(row, mapping, "pf")))
-    esi_ded  = round(num(getval(row, mapping, "esi")))
-    pt_ded   = round(num(getval(row, mapping, "prof_tax")))
+    pf_ded   = round(num(getval(row, mapping, "pf", 0)))
+    esi_ded  = round(num(getval(row, mapping, "esi", 0)))
+    pt_ded   = round(num(getval(row, mapping, "prof_tax", 0)))
+    lwf_ded  = round(num(getval(row, mapping, "lwf", 0)))
 
-    # Gross Earnings: Sum of rounded components so table always adds up perfectly
-    gross_ent  = b_ent + h_ent + add_ent + bon_ent + ot_amt + extra_day_amt
-    gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + bon_earn + bon_arr + ot_amt + extra_day_amt
+    # Gross Earnings: Sum of all rounded components
+    gross_ent  = b_ent + h_ent + add_ent + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_ent
+    gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_earn + bon_arr
 
     # Gross Deductions: Sum of employee deductions
-    gross_ded = pf_ded + esi_ded + pt_ded
+    gross_ded = pf_ded + esi_ded + pt_ded + lwf_ded
 
     # Net Salary: Gross - Deduction
     net = gross_earn - gross_ded
@@ -287,11 +325,17 @@ def calculate_row_financials(row, mapping):
         "basic_ent": b_ent, "basic_earn": b_earn, "basic_arr": b_arr,
         "hra_ent": h_ent, "hra_earn": h_earn, "hra_arr": h_arr,
         "add_ent": add_ent, "add_earn": add_earn, "add_arr": add_arr,
+        "conv_earn": conv_earn,
+        "wash_earn": wash_earn,
+        "leave_enc_earn": leave_enc_earn,
+        "incentive_earn": incentive_earn,
+        "extra_day_earn": extra_day_earn,
+        "ot_earn": ot_earn,
         "bonus_ent": bon_ent, "bonus_earn": bon_earn, "bonus_arr": bon_arr,
-        "ot_amt": ot_amt, "extra_day_amt": extra_day_amt,
         "pf_ded": pf_ded,
         "esi_ded": esi_ded,
         "pt_ded": pt_ded,
+        "lwf_ded": lwf_ded,
         "gross_ent": gross_ent,
         "gross_earn": gross_earn,
         "gross_ded": gross_ded,
@@ -474,16 +518,16 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
         ("PF No.",           getval(row, mapping, "pf_no")),
         ("Cost Center",      getval(row, mapping, "cost_center", company)),
     ]
-    ot_disp = f"{num(getval(row, mapping, 'ot', 0)):.2f}"
-    ed_disp = f"{num(getval(row, mapping, 'extra_day', 0)):.2f}"
+    extra_day_att_val = num(getval(row, mapping, "extra_day_att", getval(row, mapping, "extra_day", 0)))
+    ot_hrs_val = num(getval(row, mapping, "ot_hours", getval(row, mapping, "ot", 0)))
 
     attend_fields = [
         ("Present", pres_d),
         ("LWP",     f"{float(lwp_d):.2f}" if lwp_d and str(lwp_d).replace('.', '', 1).isdigit() else "0.00"),
         ("NH",      f"{float(getval(row, mapping, 'nh', '0')):.2f}" if getval(row, mapping, 'nh') and str(getval(row, mapping, 'nh')).replace('.', '', 1).isdigit() else "0.00"),
         ("WOFF",    f"{float(getval(row, mapping, 'woff', '4')):.2f}" if getval(row, mapping, 'woff') and str(getval(row, mapping, 'woff')).replace('.', '', 1).isdigit() else "4.00"),
-        ("OT",      ot_disp),
-        ("Extra Day", ed_disp),
+        ("Extra Day", f"{extra_day_att_val:.2f}"),
+        ("OT",      f"{ot_hrs_val:.2f}"),
         ("", "")
     ]
 
@@ -521,6 +565,36 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
     # 3. Earnings & Deductions Calculations — Exact 6-column format
     fin = calculate_row_financials(row, mapping)
 
+    earnings_rows = []
+    earnings_rows.append(("BASIC", fin["basic_ent"], fin["basic_earn"], fin["basic_arr"]))
+    earnings_rows.append(("HRA", fin["hra_ent"], fin["hra_earn"], fin["hra_arr"]))
+    if fin.get("add_earn", 0) > 0 or "add_allowance" in mapping:
+        earnings_rows.append(("Additional Allowance", fin["add_ent"], fin["add_earn"], fin["add_arr"]))
+    if fin.get("conv_earn", 0) > 0:
+        earnings_rows.append(("Conveyance Allowance", fin["conv_earn"], fin["conv_earn"], 0))
+    if fin.get("wash_earn", 0) > 0:
+        earnings_rows.append(("Washing Allowance", fin["wash_earn"], fin["wash_earn"], 0))
+    if fin.get("leave_enc_earn", 0) > 0:
+        earnings_rows.append(("Leave Encashment", fin["leave_enc_earn"], fin["leave_enc_earn"], 0))
+    if fin.get("extra_day_earn", 0) > 0:
+        earnings_rows.append(("Extra Day Pay", fin["extra_day_earn"], fin["extra_day_earn"], 0))
+    if fin.get("ot_earn", 0) > 0:
+        earnings_rows.append(("OT", fin["ot_earn"], fin["ot_earn"], 0))
+    if fin.get("incentive_earn", 0) > 0:
+        earnings_rows.append(("Incentive", fin["incentive_earn"], fin["incentive_earn"], 0))
+    if fin.get("bonus_earn", 0) > 0 or fin.get("bonus_ent", 0) > 0 or "bonus_entitled" in mapping:
+        earnings_rows.append(("Bonus", fin["bonus_ent"], fin["bonus_earn"], fin["bonus_arr"]))
+
+    deductions_rows = []
+    if fin.get("pf_ded", 0) > 0 or "pf" in mapping:
+        deductions_rows.append(("PF", fin["pf_ded"]))
+    if fin.get("esi_ded", 0) > 0 or "esi" in mapping:
+        deductions_rows.append(("ESI", fin["esi_ded"]))
+    if fin.get("pt_ded", 0) > 0 or "prof_tax" in mapping:
+        deductions_rows.append(("Prof. Tax", fin["pt_ded"]))
+    if fin.get("lwf_ded", 0) > 0 or "lwf" in mapping:
+        deductions_rows.append(("LWF", fin["lwf_ded"]))
+
     earnings_table_data = [
         [
             Paragraph("<b>Earnings</b>", table_header_style),
@@ -529,63 +603,32 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
             Paragraph("<b>Arrears</b>", table_right_header),
             Paragraph("<b>Deductions</b>", table_header_style),
             Paragraph("<b>Amount</b>", table_right_header),
-        ],
-        [
-            Paragraph("BASIC", normal_text),
-            Paragraph(money(fin["basic_ent"]), cell_right),
-            Paragraph(money(fin["basic_earn"]), cell_right),
-            Paragraph(money(fin["basic_arr"]), cell_right),
-            Paragraph("PF", normal_text),
-            Paragraph(money(fin["pf_ded"]), cell_right)
-        ],
-        [
-            Paragraph("HRA", normal_text),
-            Paragraph(money(fin["hra_ent"]), cell_right),
-            Paragraph(money(fin["hra_earn"]), cell_right),
-            Paragraph(money(fin["hra_arr"]), cell_right),
-            Paragraph("ESI", normal_text),
-            Paragraph(money(fin["esi_ded"]), cell_right)
-        ],
+        ]
     ]
 
-    if fin.get("add_earn", 0) > 0:
-        earnings_table_data.append([
-            Paragraph("Additional Allowance", normal_text),
-            Paragraph(money(fin["add_ent"]), cell_right),
-            Paragraph(money(fin["add_earn"]), cell_right),
-            Paragraph(money(fin["add_arr"]), cell_right),
-            Paragraph("", normal_text),
-            Paragraph("", cell_right)
-        ])
+    num_rows = max(len(earnings_rows), len(deductions_rows))
+    for i in range(num_rows):
+        if i < len(earnings_rows):
+            e_name, e_ent, e_earn, e_arr = earnings_rows[i]
+            c1 = Paragraph(e_name, normal_text)
+            c2 = Paragraph(money(e_ent), cell_right)
+            c3 = Paragraph(money(e_earn), cell_right)
+            c4 = Paragraph(money(e_arr) if e_arr else "", cell_right)
+        else:
+            c1 = Paragraph("", normal_text)
+            c2 = Paragraph("", cell_right)
+            c3 = Paragraph("", cell_right)
+            c4 = Paragraph("", cell_right)
 
-    if fin.get("ot_amt", 0) > 0:
-        earnings_table_data.append([
-            Paragraph("OT", normal_text),
-            Paragraph(money(fin["ot_amt"]), cell_right),
-            Paragraph(money(fin["ot_amt"]), cell_right),
-            Paragraph(money(0), cell_right),
-            Paragraph("", normal_text),
-            Paragraph("", cell_right)
-        ])
+        if i < len(deductions_rows):
+            d_name, d_amt = deductions_rows[i]
+            c5 = Paragraph(d_name, normal_text)
+            c6 = Paragraph(money(d_amt), cell_right)
+        else:
+            c5 = Paragraph("", normal_text)
+            c6 = Paragraph("", cell_right)
 
-    if fin.get("extra_day_amt", 0) > 0:
-        earnings_table_data.append([
-            Paragraph("Extra Day", normal_text),
-            Paragraph(money(fin["extra_day_amt"]), cell_right),
-            Paragraph(money(fin["extra_day_amt"]), cell_right),
-            Paragraph(money(0), cell_right),
-            Paragraph("", normal_text),
-            Paragraph("", cell_right)
-        ])
-
-    earnings_table_data.append([
-        Paragraph("Bonus", normal_text),
-        Paragraph(money(fin["bonus_ent"]), cell_right),
-        Paragraph(money(fin["bonus_earn"]), cell_right),
-        Paragraph(money(fin["bonus_arr"]), cell_right),
-        Paragraph("Prof. Tax", normal_text),
-        Paragraph(money(fin["pt_ded"]), cell_right)
-    ])
+        earnings_table_data.append([c1, c2, c3, c4, c5, c6])
 
     earnings_table_data.append([
         Paragraph("<b>Gross Earning</b>", cell_bold),
@@ -703,33 +746,59 @@ def index():
             return redirect(url_for("index"))
 
         try:
+            # Smart sheet reader: scans up to 15 rows for headers and detects site banners (e.g. "Adidev - Goa")
             if ext == ".csv":
-                df = pd.read_csv(f, dtype=str).fillna("")
+                raw_df = pd.read_csv(f, dtype=str, header=None).fillna("")
             else:
-                # Read without assuming row 0 is header to handle top banner/title rows
                 raw_df = pd.read_excel(f, dtype=str, header=None).fillna("")
-                header_row_idx = 0
-                max_score = -1
-                for r_idx in range(min(8, len(raw_df))):
-                    row_vals = [norm(str(v)) for v in raw_df.iloc[r_idx] if str(v).strip()]
-                    if not row_vals:
-                        continue
-                    # Count how many payroll keywords match this row
-                    score = sum(1 for v in row_vals if any(k in v for k in [
-                        "name", "code", "emp", "basic", "salary", "gross", "net",
-                        "ded", "pf", "esi", "days", "pan", "dept", "desig", "leave"
-                    ]))
-                    if score > max_score:
-                        max_score = score
-                        header_row_idx = r_idx
 
-                if max_score >= 2 and header_row_idx > 0:
-                    df = raw_df.iloc[header_row_idx + 1:].copy().reset_index(drop=True)
-                    df.columns = [str(c).strip() for c in raw_df.iloc[header_row_idx]]
-                    # Drop unnamed or empty columns
-                    df = df.loc[:, [bool(c) and not str(c).startswith("Unnamed") for c in df.columns]]
+            header_row_idx = 0
+            max_score = -1
+            detected_site_name = ""
+
+            for r_idx in range(min(15, len(raw_df))):
+                row_vals = [norm(str(v)) for v in raw_df.iloc[r_idx] if str(v).strip()]
+                if not row_vals:
+                    continue
+
+                # Check if a non-empty row before headers looks like a site / company banner
+                if max_score < 2:
+                    banner_cand = " ".join(str(v).strip() for v in raw_df.iloc[r_idx] if str(v).strip())
+                    if len(banner_cand) >= 3 and not any(k in norm(banner_cand) for k in ["name", "code", "emp", "basic", "salary", "designation"]):
+                        detected_site_name = banner_cand
+
+                score = sum(1 for v in row_vals if any(k in v for k in [
+                    "name", "code", "emp", "basic", "salary", "gross", "net",
+                    "ded", "pf", "esi", "days", "pan", "dept", "desig", "leave", "hra", "bonus"
+                ]))
+                if score > max_score:
+                    max_score = score
+                    header_row_idx = r_idx
+
+            if max_score >= 2:
+                # Rename duplicate columns (e.g. Exra Day -> Exra Day and Exra Day.1)
+                cols = []
+                seen = {}
+                for c in raw_df.iloc[header_row_idx]:
+                    clean_c = str(c).strip()
+                    if not clean_c or clean_c.lower().startswith("unnamed"):
+                        cols.append("")
+                        continue
+                    if clean_c in seen:
+                        seen[clean_c] += 1
+                        cols.append(f"{clean_c}.{seen[clean_c]}")
+                    else:
+                        seen[clean_c] = 0
+                        cols.append(clean_c)
+
+                df = raw_df.iloc[header_row_idx + 1:].copy().reset_index(drop=True)
+                df.columns = cols
+                df = df.loc[:, [bool(c) for c in df.columns]]
+            else:
+                f.seek(0)
+                if ext == ".csv":
+                    df = pd.read_csv(f, dtype=str).fillna("")
                 else:
-                    f.seek(0)
                     df = pd.read_excel(f, dtype=str).fillna("")
                 df.columns = [str(c).strip() for c in df.columns]
 
@@ -772,7 +841,11 @@ def index():
         # Compute summary metrics for preview banner
         total_employees = len(records)
         month = request.form.get("month") or datetime.now().strftime("%B, %Y")
-        company = request.form.get("company") or DEFAULT_COMPANY
+        company = request.form.get("company")
+        if (not company or company == DEFAULT_COMPANY) and detected_site_name:
+            company = detected_site_name
+        elif not company:
+            company = DEFAULT_COMPANY
         address = request.form.get("address") or DEFAULT_ADDRESS
 
         # Calculate quick summary aggregates
