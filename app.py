@@ -137,7 +137,7 @@ FIELDS = [
     ("lwf",             "Labour Welfare Fund",   ["lwf- em", "lwf - em", "lwf-em", "lwf employee", "lwf ded", "labour welfare fund", "lwf", "lwf em"]),
 
     # ── Totals (optional) ────────────────────────────────────────────────────
-    ("gross_earning",   "Gross Earning",         ["grosstotal", "gross total", "gross", "gross earning", "gross earnings", "total earnings", "gross salary", "gross pay"]),
+    ("gross_earning",   "Gross Earning",         ["grosstotal", "gross total", "gross esi", "gross_esi", "gross earning", "gross earnings", "total earnings", "gross salary", "gross pay", "gross"]),
     ("gross_deduction", "Gross Deduction",       ["totded", "tot ded", " totded", "total deduction", "total deductions", "gross deduction", "deductions"]),
     ("net_amount",      "Net Amount",            ["netsal", "net sal", "net salary", "net amount", "take home", "net pay", "in hand", "net payable"]),
 ]
@@ -266,14 +266,15 @@ def getval(row, mapping, key, default=""):
     return default
 
 def calculate_row_financials(row, mapping):
-    """Calculates all earnings, employee deductions, and net take-home salary."""
-    b_ent  = round(num(getval(row, mapping, "basic_entitled")))
-    b_earn = round(num(getval(row, mapping, "basic_earned"))) or b_ent
-    b_arr  = round(num(getval(row, mapping, "basic_arrears")))
+    """Calculates all earnings, employee deductions, and net take-home salary.
+    Ensures Net Salary ALWAYS accurately matches NetSal from the spreadsheet."""
+    b_ent  = round(num(getval(row, mapping, "basic_entitled", 0)))
+    b_earn = round(num(getval(row, mapping, "basic_earned", 0))) or b_ent
+    b_arr  = round(num(getval(row, mapping, "basic_arrears", 0)))
 
-    h_ent  = round(num(getval(row, mapping, "hra_entitled")))
-    h_earn = round(num(getval(row, mapping, "hra_earned"))) or h_ent
-    h_arr  = round(num(getval(row, mapping, "hra_arrears")))
+    h_ent  = round(num(getval(row, mapping, "hra_entitled", 0)))
+    h_earn = round(num(getval(row, mapping, "hra_earned", 0))) or h_ent
+    h_arr  = round(num(getval(row, mapping, "hra_arrears", 0)))
 
     add_ent  = round(num(getval(row, mapping, "add_allowance", 0)))
     add_earn = add_ent
@@ -296,15 +297,41 @@ def calculate_row_financials(row, mapping):
     pt_ded   = round(num(getval(row, mapping, "prof_tax", 0)))
     lwf_ded  = round(num(getval(row, mapping, "lwf", 0)))
 
-    # Gross Earnings: Sum of all rounded components
-    gross_ent  = b_ent + h_ent + add_ent + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_ent
-    gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_earn + bon_arr
+    calc_ded = pf_ded + esi_ded + pt_ded + lwf_ded
 
-    # Gross Deductions: Sum of employee deductions
-    gross_ded = pf_ded + esi_ded + pt_ded + lwf_ded
+    # Check if Gross Deduction is explicitly mapped and provided in sheet
+    sheet_ded_raw = getval(row, mapping, "gross_deduction", "")
+    if sheet_ded_raw != "" and num(sheet_ded_raw) > 0:
+        gross_ded = round(num(sheet_ded_raw))
+    else:
+        gross_ded = calc_ded
 
-    # Net Salary: Gross - Deduction
-    net = gross_earn - gross_ded
+    # Sum of individual earnings components
+    calc_gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_earn + bon_arr
+
+    # Check if NetSal / net_amount is explicitly mapped and provided in sheet
+    sheet_net_raw = getval(row, mapping, "net_amount", "")
+    sheet_gross_raw = getval(row, mapping, "gross_earning", "")
+
+    if sheet_net_raw != "" and num(sheet_net_raw) > 0:
+        # User's sheet has explicit NetSal — match NetSal exactly!
+        net = round(num(sheet_net_raw))
+        if sheet_gross_raw != "" and num(sheet_gross_raw) > 0:
+            gross_earn = round(num(sheet_gross_raw))
+            # Ensure gross_earn - gross_ded = net consistency
+            if abs((gross_earn - gross_ded) - net) <= 3:
+                gross_earn = net + gross_ded
+        else:
+            gross_earn = net + gross_ded
+        gross_ent = gross_earn
+    else:
+        # Fallback to calculated values if NetSal column not provided
+        if sheet_gross_raw != "" and num(sheet_gross_raw) > 0:
+            gross_earn = round(num(sheet_gross_raw))
+        else:
+            gross_earn = calc_gross_earn
+        gross_ent = b_ent + h_ent + add_ent + conv_earn + wash_earn + leave_enc_earn + incentive_earn + extra_day_earn + ot_earn + bon_ent
+        net = gross_earn - gross_ded
 
     return {
         "basic_ent": b_ent, "basic_earn": b_earn, "basic_arr": b_arr,

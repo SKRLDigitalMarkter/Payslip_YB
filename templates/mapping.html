@@ -777,15 +777,18 @@ function recalculateTopMetrics() {
     const inc = Math.round(numVal(getRecordField(row, "incentive", "0")));
     const ed = Math.round(numVal(getRecordField(row, "extra_day_earn", getRecordField(row, "extra_day", "0"))));
     const ot = Math.round(numVal(getRecordField(row, "ot", "0")));
-    const gross = Math.round(numVal(getRecordField(row, "gross_earning", b + h + a + bon + conv + wash + leave_enc + inc + ed + ot)));
-
     const pf = Math.round(numVal(getRecordField(row, "pf", "0")));
     const esi = Math.round(numVal(getRecordField(row, "esi", "0")));
     const pt = Math.round(numVal(getRecordField(row, "prof_tax", "0")));
     const lwf = Math.round(numVal(getRecordField(row, "lwf", "0")));
-    const ded = Math.round(numVal(getRecordField(row, "gross_deduction", pf + esi + pt + lwf)));
 
-    const net = Math.round(numVal(getRecordField(row, "net_amount", gross - ded)));
+    const sheetNet = Math.round(numVal(getRecordField(row, "net_amount")));
+    const sheetDed = Math.round(numVal(getRecordField(row, "gross_deduction")));
+    const sheetGross = Math.round(numVal(getRecordField(row, "gross_earning")));
+
+    const ded = sheetDed > 0 ? sheetDed : Math.round(pf + esi + pt + lwf);
+    const net = sheetNet > 0 ? sheetNet : Math.round((b + h + a + bon + conv + wash + leave_enc + inc + ed + ot) - ded);
+    const gross = sheetGross > 0 ? sheetGross : (net + ded);
 
     totalGross += gross;
     totalDed += ded;
