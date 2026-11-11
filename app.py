@@ -118,6 +118,8 @@ FIELDS = [
     ("bonus_entitled",  "Bonus Entitled",    ["bonus", "statutory bonus", "bonus entitled", "bonus rate", "incentive"]),
     ("bonus_earned",    "Bonus Earned",      ["bonus earned", "earned bonus"]),
     ("bonus_arrears",   "Bonus Arrears",     ["bonus arrears", "arrears bonus"]),
+    ("ot",             "OT / Overtime",        ["ot", "ot amount", "overtime", "overtime amount", "ot pay", "over time", "overtime pay", "ot wages", "ot days", "ot hours", "ot hrs", "ot day"]),
+    ("extra_day",      "Extra Day",            ["extra day", "extra_day", "extra days", "extra day amount", "extra day pay", "extra days pay", "holiday pay", "extra working day", "ed", "ed amount", "extra day wages", "ed days"]),
     # ── Deductions ───────────────────────────────────────────────────────────
     ("pf",          "PF Deduction",          ["pf", "pf ", "pf deduction", "pf amount", "provident fund", "epf", "pf ee", "pf employee"]),
     ("esi",         "ESI Deduction",         ["esi basic da", "esi basic", "esi", "esi deduction", "esi amount", "esic ee", "esi employee"]),
@@ -262,14 +264,18 @@ def calculate_row_financials(row, mapping):
     bon_earn = round(num(getval(row, mapping, "bonus_earned"))) or bon_ent
     bon_arr  = round(num(getval(row, mapping, "bonus_arrears")))
 
+    # OT and Extra Day: if no data / empty / NaN, strictly default to 0
+    ot_amt   = round(num(getval(row, mapping, "ot", 0)))
+    extra_day_amt = round(num(getval(row, mapping, "extra_day", 0)))
+
     # Deductions: Employee deductions only!
     pf_ded   = round(num(getval(row, mapping, "pf")))
     esi_ded  = round(num(getval(row, mapping, "esi")))
     pt_ded   = round(num(getval(row, mapping, "prof_tax")))
 
     # Gross Earnings: Sum of rounded components so table always adds up perfectly
-    gross_ent  = b_ent + h_ent + add_ent + bon_ent
-    gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + bon_earn + bon_arr
+    gross_ent  = b_ent + h_ent + add_ent + bon_ent + ot_amt + extra_day_amt
+    gross_earn = b_earn + b_arr + h_earn + h_arr + add_earn + add_arr + bon_earn + bon_arr + ot_amt + extra_day_amt
 
     # Gross Deductions: Sum of employee deductions
     gross_ded = pf_ded + esi_ded + pt_ded
@@ -282,6 +288,7 @@ def calculate_row_financials(row, mapping):
         "hra_ent": h_ent, "hra_earn": h_earn, "hra_arr": h_arr,
         "add_ent": add_ent, "add_earn": add_earn, "add_arr": add_arr,
         "bonus_ent": bon_ent, "bonus_earn": bon_earn, "bonus_arr": bon_arr,
+        "ot_amt": ot_amt, "extra_day_amt": extra_day_amt,
         "pf_ded": pf_ded,
         "esi_ded": esi_ded,
         "pt_ded": pt_ded,
@@ -467,13 +474,16 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
         ("PF No.",           getval(row, mapping, "pf_no")),
         ("Cost Center",      getval(row, mapping, "cost_center", company)),
     ]
+    ot_disp = f"{num(getval(row, mapping, 'ot', 0)):.2f}"
+    ed_disp = f"{num(getval(row, mapping, 'extra_day', 0)):.2f}"
+
     attend_fields = [
         ("Present", pres_d),
         ("LWP",     f"{float(lwp_d):.2f}" if lwp_d and str(lwp_d).replace('.', '', 1).isdigit() else "0.00"),
         ("NH",      f"{float(getval(row, mapping, 'nh', '0')):.2f}" if getval(row, mapping, 'nh') and str(getval(row, mapping, 'nh')).replace('.', '', 1).isdigit() else "0.00"),
         ("WOFF",    f"{float(getval(row, mapping, 'woff', '4')):.2f}" if getval(row, mapping, 'woff') and str(getval(row, mapping, 'woff')).replace('.', '', 1).isdigit() else "4.00"),
-        ("", ""),
-        ("", ""),
+        ("OT",      ot_disp),
+        ("Extra Day", ed_disp),
         ("", "")
     ]
 
@@ -544,6 +554,26 @@ def build_pdf(row, mapping, month, company=DEFAULT_COMPANY, address=DEFAULT_ADDR
             Paragraph(money(fin["add_ent"]), cell_right),
             Paragraph(money(fin["add_earn"]), cell_right),
             Paragraph(money(fin["add_arr"]), cell_right),
+            Paragraph("", normal_text),
+            Paragraph("", cell_right)
+        ])
+
+    if fin.get("ot_amt", 0) > 0:
+        earnings_table_data.append([
+            Paragraph("OT", normal_text),
+            Paragraph(money(fin["ot_amt"]), cell_right),
+            Paragraph(money(fin["ot_amt"]), cell_right),
+            Paragraph(money(0), cell_right),
+            Paragraph("", normal_text),
+            Paragraph("", cell_right)
+        ])
+
+    if fin.get("extra_day_amt", 0) > 0:
+        earnings_table_data.append([
+            Paragraph("Extra Day", normal_text),
+            Paragraph(money(fin["extra_day_amt"]), cell_right),
+            Paragraph(money(fin["extra_day_amt"]), cell_right),
+            Paragraph(money(0), cell_right),
             Paragraph("", normal_text),
             Paragraph("", cell_right)
         ])
@@ -905,6 +935,8 @@ def download_sample():
             "LWP": "0",
             "NH": "2",
             "WOFF": "4",
+            "OT": "0",
+            "Extra Day": "0",
             "Paid Days": "30",
             "Bank Account No.": "98765432101234",
             "PF No.": "100234567891",
@@ -975,6 +1007,8 @@ def download_sample():
             "LWP": "0",
             "NH": "2",
             "WOFF": "4",
+            "OT": "0",
+            "Extra Day": "0",
             "Paid Days": "30",
             "Bank Account No.": "65432109876543",
             "PF No.": "100456789123",
@@ -1010,6 +1044,8 @@ def download_sample():
             "LWP": "0",
             "NH": "2",
             "WOFF": "4",
+            "OT": "0",
+            "Extra Day": "0",
             "Paid Days": "30",
             "Bank Account No.": "76543210987654",
             "PF No.": "100567891234",
